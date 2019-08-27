@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-CN">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+  <meta http-equiv="Cache-Control" content="no-transform">
+  <meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+    
+      
+    
+
+    
+  
+
+  
+
+  
+    
+    
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Kaushan Script:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext">
+  
+
+
+
+
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2">
+
+<link rel="stylesheet" href="/css/main.css?v=7.1.1">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=7.1.1">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="https://tva4.sinaimg.cn/crop.0.0.664.664.180/b07d2822jw8fb0vsx3wptj20ig0igmys.jpg?v=7.1.1">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=7.1.1">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=7.1.1" color="#222">
+
+
+
+
+
+
+
+<script id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '7.1.1',
+    sidebar: {"position":"left","display":"post","offset":12,"onmobile":false,"dimmer":false},
+    back2top: true,
+    back2top_sidebar: false,
+    fancybox: false,
+    fastclick: false,
+    lazyload: false,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+  
+
+
+
+
+  <meta name="description" content="上一篇分析到了KeyEvent的分发其实就是把事件交给了焦点View处理，那怎么去定义一个View可获得焦点？其实很简单，只需要在xml布局中设置View的focusable属性为true就可以了，那现在就开始分析这个focusable属性究竟是怎么发挥它的作用的。 View的焦点模式View定义了三种焦点模式，直接看它们在代码中定义：1234567891011121314151617181920">
+<meta name="keywords" content="android,android TV开发">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android TV开发按键与焦点深入解析（二）--View的焦点">
+<meta property="og:url" content="https://msisuzney.github.io/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/index.html">
+<meta property="og:site_name" content="Chenxin’s Blog">
+<meta property="og:description" content="上一篇分析到了KeyEvent的分发其实就是把事件交给了焦点View处理，那怎么去定义一个View可获得焦点？其实很简单，只需要在xml布局中设置View的focusable属性为true就可以了，那现在就开始分析这个focusable属性究竟是怎么发挥它的作用的。 View的焦点模式View定义了三种焦点模式，直接看它们在代码中定义：1234567891011121314151617181920">
+<meta property="og:locale" content="zh-CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/6_focusable.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/6_requestFocus.png">
+<meta property="og:updated_time" content="2019-08-27T14:25:01.819Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Android TV开发按键与焦点深入解析（二）--View的焦点">
+<meta name="twitter:description" content="上一篇分析到了KeyEvent的分发其实就是把事件交给了焦点View处理，那怎么去定义一个View可获得焦点？其实很简单，只需要在xml布局中设置View的focusable属性为true就可以了，那现在就开始分析这个focusable属性究竟是怎么发挥它的作用的。 View的焦点模式View定义了三种焦点模式，直接看它们在代码中定义：1234567891011121314151617181920">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/6_focusable.png">
+
+
+
+
+
+  
+  
+  <link rel="canonical" href="https://msisuzney.github.io/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/">
+
+
+
+<script id="page.configurations">
+  CONFIG.page = {
+    sidebar: "",
+  };
+</script>
+
+  <title>Android TV开发按键与焦点深入解析（二）--View的焦点 | Chenxin’s Blog</title>
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .motion-element,
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-title { opacity: initial; }
+
+  .use-motion .logo,
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Chenxin’s Blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+    
+    
+  </div>
+
+  <div class="site-nav-toggle">
+    <button aria-label="切换导航栏">
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  
+    <ul id="menu" class="menu">
+      
+        
+        
+        
+          
+          <li class="menu-item menu-item-home">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/" rel="section"><i class="menu-item-icon fa fa-fw fa-home"></i> <br>首页</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-categories">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/categories/" rel="section"><i class="menu-item-icon fa fa-fw fa-th"></i> <br>分类</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-tags">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/tags/" rel="section"><i class="menu-item-icon fa fa-fw fa-tags"></i> <br>标签</a>
+
+  </li>
+        
+        
+        
+          
+          <li class="menu-item menu-item-archives">
+
+    
+    
+    
+      
+    
+
+    
+
+    <a href="/archives/" rel="section"><i class="menu-item-icon fa fa-fw fa-archive"></i> <br>归档</a>
+
+  </li>
+
+      
+      
+    </ul>
+  
+
+  
+    
+
+  
+
+  
+</nav>
+
+
+
+  
+
+
+
+</div>
+    </header>
+
+    
+
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="chenxin">
+      <meta itemprop="description" content="时光的烂笔头">
+      <meta itemprop="image" content="https://tva4.sinaimg.cn/crop.0.0.664.664.180/b07d2822jw8fb0vsx3wptj20ig0igmys.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin’s Blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Android TV开发按键与焦点深入解析（二）--View的焦点
+
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+
+            
+            
+            
+
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+
+              
+                
+              
+
+              <time title="创建时间：2019-08-27 22:19:04 / 修改时间：22:25:01" itemprop="dateCreated datePublished" datetime="2019-08-27T22:19:04+08:00">2019-08-27</time>
+            
+
+            
+              
+
+              
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/android-TV/" itemprop="url" rel="index"><span itemprop="name">android TV</span></a></span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+            
+              
+              <span class="post-comments-count">
+                <span class="post-meta-divider">|</span>
+                <span class="post-meta-item-icon">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+            
+                <span class="post-meta-item-text">评论数：</span>
+                <a href="/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/#comments" itemprop="discussionUrl">
+                  <span class="post-comments-count valine-comment-count" data-xid="/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/" itemprop="commentCount"></span>
+                </a>
+              </span>
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>上一篇分析到了KeyEvent的分发其实就是把事件交给了焦点View处理，那怎么去定义一个View可获得焦点？其实很简单，只需要在xml布局中设置View的focusable属性为true就可以了，那现在就开始分析这个focusable属性究竟是怎么发挥它的作用的。</p>
+<h3 id="View的焦点模式"><a href="#View的焦点模式" class="headerlink" title="View的焦点模式"></a>View的焦点模式</h3><p>View定义了三种焦点模式，直接看它们在代码中定义：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">    * This view does not want keystrokes.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> NOT_FOCUSABLE = <span class="number">0x00000000</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * This view wants keystrokes.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUSABLE = <span class="number">0x00000001</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * This view determines focusability automatically. This is the default.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUSABLE_AUTO = <span class="number">0x00000010</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * Mask for use with setFlags indicating bits used for focus.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUSABLE_MASK = <span class="number">0x00000011</span>;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * The view flags hold various views states.</span></span><br><span class="line"><span class="comment">    * &#123;<span class="doctag">@hide</span>&#125;</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="meta">@ViewDebug</span>.ExportedProperty(formatToHexString = <span class="keyword">true</span>)</span><br><span class="line">   <span class="keyword">int</span> mViewFlags;</span><br></pre></td></tr></table></figure></p>
+<p>其中FOCUSABLE_MASK表示foucsable属性占用mViewFlags的bit位置，可以看出mViewFlags中第1位和第5位用来联合表示view的焦点模式，有FOCUSABLE、NOT_FOCUSABLE和FOCUSABLE_AUTO三种焦点模式，第1位控制FOCUSABLE、NOT_FOCUSABLE，第5位单独控制FOCUSABLE_AUTO.<br>接着看看View的构造方法中解析xml布局设置的focusable属性的过程，主要的代码如下：<br> <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">View的构造方法中    </span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="title">View</span><span class="params">(Context context, @Nullable AttributeSet attrs,</span></span></span><br><span class="line"><span class="function"><span class="params">             <span class="keyword">int</span> defStyleAttr, <span class="keyword">int</span> defStyleRes)</span> </span>&#123;</span><br><span class="line">      <span class="comment">//设置默认的值</span></span><br><span class="line">       mViewFlags =  FOCUSABLE_AUTO;</span><br><span class="line">        <span class="comment">// Set default values.</span></span><br><span class="line">        viewFlagValues |= FOCUSABLE_AUTO;</span><br><span class="line">        viewFlagMasks |= FOCUSABLE_AUTO;</span><br><span class="line">		......</span><br><span class="line">      <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; N; i++) &#123;</span><br><span class="line">        <span class="comment">//获取xml文件中设置的的焦点状态</span></span><br><span class="line">        <span class="keyword">case</span> com.android.internal.R.styleable.View_focusable:</span><br><span class="line">        <span class="comment">// (viewFlagValues &amp; ~FOCUSABLE_MASK)  将焦点状态置为空，“与|”将从xml中获取的焦点状态赋值给viewFlagValues</span></span><br><span class="line">        viewFlagValues = (viewFlagValues &amp; ~FOCUSABLE_MASK) | getFocusableAttribute(a);</span><br><span class="line">        <span class="comment">//如果viewFlagValues中的焦点状态不再是FOCUSABLE_AUTO，说明焦点状态变了，修改位变化记录mask值</span></span><br><span class="line">        <span class="keyword">if</span> ((viewFlagValues &amp; FOCUSABLE_AUTO) == <span class="number">0</span>) &#123;</span><br><span class="line">            viewFlagMasks |= FOCUSABLE_MASK;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">     &#125;</span><br><span class="line">    	.......</span><br><span class="line">     <span class="keyword">if</span> (viewFlagMasks != <span class="number">0</span>) &#123;</span><br><span class="line">         setFlags(viewFlagValues, viewFlagMasks);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//将xml中设置的焦点状态转换为View自己定义的二进制格式</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">getFocusableAttribute</span><span class="params">(TypedArray attributes)</span> </span>&#123;</span><br><span class="line">    TypedValue val = <span class="keyword">new</span> TypedValue();</span><br><span class="line">    <span class="keyword">if</span> (attributes.getValue(com.android.internal.R.styleable.View_focusable, val)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (val.type == TypedValue.TYPE_INT_BOOLEAN) &#123;</span><br><span class="line">            <span class="keyword">return</span> (val.data == <span class="number">0</span> ? NOT_FOCUSABLE : FOCUSABLE);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> val.data;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> FOCUSABLE_AUTO;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在最开始的时候设置了View的焦点模式为FOCUSABLE_AUTO，在遍历属性时如果xml布局有设置focusable属性，则取出，没有的话依然是FOCUSABLE_AUTO,这样focuable属性就转换成了viewFlagValues中的参数，构造方法最后还调用了setFlags方法设置mViewFlags，这个方法内还处理设置了clickable但没有设置focusable的情况，如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">View中</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">setFlags</span><span class="params">(<span class="keyword">int</span> flags, <span class="keyword">int</span> mask)</span> </span>&#123;</span><br><span class="line">        <span class="comment">//将flags变化了的bit同步到全局变量mViewFlags中</span></span><br><span class="line">        mViewFlags = (mViewFlags &amp; ~mask) | (flags &amp; mask);</span><br><span class="line">		......</span><br><span class="line">        <span class="comment">// If focusable is auto, update the FOCUSABLE bit.</span></span><br><span class="line">        <span class="keyword">int</span> focusableChangedByAuto = <span class="number">0</span>;</span><br><span class="line">        <span class="comment">//焦点状态是FOCUSABLE_AUTO</span></span><br><span class="line">        <span class="keyword">if</span> (((mViewFlags &amp; FOCUSABLE_AUTO) != <span class="number">0</span>)</span><br><span class="line">                &amp;&amp; (changed &amp; (FOCUSABLE_MASK | CLICKABLE)) != <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="comment">// Heuristic only takes into account whether view is clickable.</span></span><br><span class="line">            <span class="keyword">final</span> <span class="keyword">int</span> newFocus;</span><br><span class="line">            <span class="comment">//View可以被点击，将焦点状态添加FOCUSABLE，否则添加NOT_FOCUSABLE</span></span><br><span class="line">            <span class="keyword">if</span> ((mViewFlags &amp; CLICKABLE) != <span class="number">0</span>) &#123;</span><br><span class="line">                newFocus = FOCUSABLE;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                newFocus = NOT_FOCUSABLE;</span><br><span class="line">            &#125;</span><br><span class="line">            mViewFlags = (mViewFlags &amp; ~FOCUSABLE) | newFocus;</span><br><span class="line">			.....</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看出，如果是FOCUSABLE_AUTO情况，也就是xml文件没设置focusable属性，焦点的模式还与clickable属性有关，如果View是clickable的，那么View是FOCUSABLE，否则是NOT_FOCUSABLE，可以用下面这张表来描述clickable和focusable属性对View的焦点模式的影响<br><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/6_focusable.png" alt="focusable.png"></p>
+<p>现在可以回答上一篇结束时提的问题了，Android手机应用运行在Android电视上可以响应按键事件吗？如果这个View在xml文件中设置了clickable属性为true那这个View就可以获得焦点，也就可以响应按键事件，如果既没有设置clickable也没有设置focusable为true，那这个View就获取不到焦点，也就响应不了按键事件了。</p>
+<p>下面是View提供的两种获得焦点模式的方法<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">View中</span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">getFocusable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="comment">//只要设置了FOCUSABLE_AUTO就只返回FOCUSABLE_AUTO</span></span><br><span class="line">       <span class="keyword">return</span> (mViewFlags &amp; FOCUSABLE_AUTO) &gt; <span class="number">0</span> ? FOCUSABLE_AUTO : mViewFlags &amp; FOCUSABLE;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">isFocusable</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> FOCUSABLE == (mViewFlags &amp; FOCUSABLE);</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure></p>
+<p>一般情况我们使用isFocusable方法就OK了，getFocusable方法可以用来在可以获得焦点时判断是clickable导致的，还是focusable设置的.</p>
+<h3 id="ViewGroup的焦点模式"><a href="#ViewGroup的焦点模式" class="headerlink" title="ViewGroup的焦点模式"></a>ViewGroup的焦点模式</h3><p>上小节分析的View的焦点模式完全适用于ViewGroup，毕竟它也是View的儿子，但由于ViewGroup有子View，为了避免焦点产生歧义，还定义了ViewGroup相对于子View的三种获得焦点的顺序，如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">	在所有子View之前</span></span><br><span class="line"><span class="comment"> * This view will get focus before any of its descendants.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUS_BEFORE_DESCENDANTS = <span class="number">0x20000</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">	在所有子View之后</span></span><br><span class="line"><span class="comment"> * This view will get focus only if none of its descendants want it.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUS_AFTER_DESCENDANTS = <span class="number">0x40000</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">	拦截所有焦点，不通知子View</span></span><br><span class="line"><span class="comment"> * This view will block any of its descendants from getting focus, even</span></span><br><span class="line"><span class="comment"> * if they are focusable.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FOCUS_BLOCK_DESCENDANTS = <span class="number">0x60000</span>;</span><br><span class="line"><span class="comment">//定义mGroupFlags中的第17和18位用来表示这个顺序</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> FLAG_MASK_FOCUSABILITY = <span class="number">0x60000</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">protected</span> <span class="keyword">int</span> mGroupFlags;</span><br></pre></td></tr></table></figure></p>
+<p>ViewGroup的FLAG_MASK_FOCUSABILITY是用来控制焦点在View树中的传递顺序的，顺序有三种：</p>
+<ul>
+<li><strong>FOCUS_BEFORE_DESCENDANTS</strong>： 在所有子View之前，自己没获取再给子View</li>
+<li><strong>FOCUS_AFTER_DESCENDANTS</strong>： 在所有子View之后，所有子View都没能获得焦点才问下自己能不能</li>
+<li><strong>FOCUS_BLOCK_DESCENDANTS</strong>： 不通知子View ，即使自己获取不到</li>
+</ul>
+<p>和View的焦点模式一样，获得焦点的顺序也是在构造方法中设置的:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">ViewGroup中</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span>[] DESCENDANT_FOCUSABILITY_FLAGS =</span><br><span class="line">            &#123;FOCUS_BEFORE_DESCENDANTS, FOCUS_AFTER_DESCENDANTS,</span><br><span class="line">                    FOCUS_BLOCK_DESCENDANTS&#125;;</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="title">ViewGroup</span><span class="params">(Context context, AttributeSet attrs, <span class="keyword">int</span> defStyleAttr, <span class="keyword">int</span> defStyleRes)</span> </span>&#123;</span><br><span class="line">        ......</span><br><span class="line">        <span class="keyword">case</span> R.styleable.ViewGroup_descendantFocusability:</span><br><span class="line">            <span class="comment">//默认是FOCUS_BEFORE_DESCENDANTS</span></span><br><span class="line">            setDescendantFocusability(DESCENDANT_FOCUSABILITY_FLAGS[a.getInt(attr, <span class="number">0</span>)]);</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setDescendantFocusability</span><span class="params">(<span class="keyword">int</span> focusability)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">switch</span> (focusability) &#123;</span><br><span class="line">                <span class="keyword">case</span> FOCUS_BEFORE_DESCENDANTS:</span><br><span class="line">                <span class="keyword">case</span> FOCUS_AFTER_DESCENDANTS:</span><br><span class="line">                <span class="keyword">case</span> FOCUS_BLOCK_DESCENDANTS:</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">default</span>:</span><br><span class="line">                    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"must be one of FOCUS_BEFORE_DESCENDANTS, "</span></span><br><span class="line">                            + <span class="string">"FOCUS_AFTER_DESCENDANTS, FOCUS_BLOCK_DESCENDANTS"</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">//设置顺序</span></span><br><span class="line">            mGroupFlags &amp;= ~FLAG_MASK_FOCUSABILITY;</span><br><span class="line">            mGroupFlags |= (focusability &amp; FLAG_MASK_FOCUSABILITY);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure></p>
+<p>从代码中可以发现，如果不写这个属性，ViewGroup设置自己在所有子View之前处理焦点.</p>
+<h3 id="View的requestFocus方法"><a href="#View的requestFocus方法" class="headerlink" title="View的requestFocus方法"></a>View的requestFocus方法</h3><p>要让一个View获得焦点，需要调用它的requestFocus方法，调用时序图如下（具体的方法可以直接搜索源码）：<br><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/6_requestFocus.png" alt="requestFocus.png"></p>
+<p>View先调用自己的canTakeFocus方法确认自己是不是能够获得焦点，这个方法如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">canTakeFocus</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> ((mViewFlags &amp; VISIBILITY_MASK) == VISIBLE)</span><br><span class="line">            &amp;&amp; ((mViewFlags &amp; FOCUSABLE) == FOCUSABLE)</span><br><span class="line">            &amp;&amp; ((mViewFlags &amp; ENABLED_MASK) == ENABLED)</span><br><span class="line">            &amp;&amp; (sCanFocusZeroSized || !isLayoutValid() || hasSize());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>判断的依据是 : <strong>1.view可见   2.可以获得焦点   3.是enable的   4.有大小</strong><br>然后递归调用所有父View的hasAncestorThatBlocksDescendantFocus方法，确认父View是不是设置了拦截焦点，如果父View拦截了焦点，自己就不能获得焦点。<br>如果上面两项都通过了，那就可以名正言顺的获得焦点了，handleFocusGainInternal方法如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">handleFocusGainInternal</span><span class="params">(@FocusRealDirection <span class="keyword">int</span> direction, Rect previouslyFocusedRect)</span> </span>&#123;</span><br><span class="line">      <span class="keyword">if</span> (DBG) &#123;</span><br><span class="line">          System.out.println(<span class="keyword">this</span> + <span class="string">" requestFocus()"</span>);</span><br><span class="line">      &#125;</span><br><span class="line"><span class="comment">//修改状态，flag添加PFLAG_FOCUSED，标记自己有焦点</span></span><br><span class="line">      <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_FOCUSED) == <span class="number">0</span>) &#123;</span><br><span class="line">          mPrivateFlags |= PFLAG_FOCUSED;</span><br><span class="line"></span><br><span class="line">          View oldFocus = (mAttachInfo != <span class="keyword">null</span>) ? getRootView().findFocus() : <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (mParent != <span class="keyword">null</span>) &#123;</span><br><span class="line">              <span class="comment">//通知父View，我现在是那个有焦点的View</span></span><br><span class="line">              mParent.requestChildFocus(<span class="keyword">this</span>, <span class="keyword">this</span>);</span><br><span class="line">              updateFocusedInCluster(oldFocus, direction);</span><br><span class="line">          &#125;</span><br><span class="line">	<span class="comment">//调用设置的View树全局焦点变化监听</span></span><br><span class="line">          <span class="keyword">if</span> (mAttachInfo != <span class="keyword">null</span>) &#123;</span><br><span class="line">              mAttachInfo.mTreeObserver.dispatchOnGlobalFocusChange(oldFocus, <span class="keyword">this</span>);</span><br><span class="line">          &#125;</span><br><span class="line">	<span class="comment">//调用自己的onFocusChangeListener方法</span></span><br><span class="line">          onFocusChanged(<span class="keyword">true</span>, direction, previouslyFocusedRect);</span><br><span class="line">          refreshDrawableState();</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></p>
+<p>方法中将mPrivateFlags中的表示是否有焦点的bit置为1，表示自己有焦点，这在上一章中分析过，之后调用父View的requestChildFocus的方法，如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"> <span class="meta">@Override</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">requestChildFocus</span><span class="params">(View child, View focused)</span> </span>&#123;</span><br><span class="line">		......</span><br><span class="line">     <span class="keyword">if</span> (getDescendantFocusability() == FOCUS_BLOCK_DESCENDANTS) &#123;</span><br><span class="line">         <span class="keyword">return</span>;</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="comment">// Unfocus us, if necessary</span></span><br><span class="line">     <span class="keyword">super</span>.unFocus(focused);</span><br><span class="line">     <span class="comment">// We had a previous notion of who had focus. Clear it.</span></span><br><span class="line">     <span class="keyword">if</span> (mFocused != child) &#123;</span><br><span class="line">         <span class="keyword">if</span> (mFocused != <span class="keyword">null</span>) &#123;</span><br><span class="line">             mFocused.unFocus(focused);</span><br><span class="line">         &#125;</span><br><span class="line"><span class="comment">//修改mFocused变量，指向这个新的获得焦点的子View</span></span><br><span class="line">         mFocused = child;</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="keyword">if</span> (mParent != <span class="keyword">null</span>) &#123;</span><br><span class="line">         <span class="comment">//告诉父View，我是那个包含焦点View的乖儿子</span></span><br><span class="line">         mParent.requestChildFocus(<span class="keyword">this</span>, focused);     </span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure></p>
+<p>父View的requestChildFocus方法中将mFocused成员变量指向这个有焦点的View，然后通知自己的父View<strong>我是那个包含焦点View的子View</strong>，如此遍历所有的父View，直到ViewRootImpl，这样就修改所有的父View中的mFocused变量了，之后有按键事件时就按这个路径传递KeyEvent，这也在上一篇中也有分析。</p>
+<h3 id="ViewGroup的requestFocus方法"><a href="#ViewGroup的requestFocus方法" class="headerlink" title="ViewGroup的requestFocus方法"></a>ViewGroup的requestFocus方法</h3><p>ViewGroup复写了View的requestFocus(int direction, Rect previouslyFocusedRect)方法，如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"> <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">requestFocus</span><span class="params">(<span class="keyword">int</span> direction, Rect previouslyFocusedRect)</span> </span>&#123;</span><br><span class="line"><span class="comment">//获取ViewGroup相对于子View的获得焦点的顺序</span></span><br><span class="line">      <span class="keyword">int</span> descendantFocusability = getDescendantFocusability();</span><br><span class="line"></span><br><span class="line">      <span class="keyword">boolean</span> result;</span><br><span class="line">      <span class="keyword">switch</span> (descendantFocusability) &#123;</span><br><span class="line">           <span class="comment">//拦截焦点，直接调用自己的获取焦点的逻辑</span></span><br><span class="line">          <span class="keyword">case</span> FOCUS_BLOCK_DESCENDANTS:</span><br><span class="line">              result = <span class="keyword">super</span>.requestFocus(direction, previouslyFocusedRect);</span><br><span class="line">              <span class="keyword">break</span>;</span><br><span class="line">          <span class="comment">//在子View之前，调用自己的获取焦点的逻辑，如果不能获得，遍历子View，让先子View处理</span></span><br><span class="line">          <span class="keyword">case</span> FOCUS_BEFORE_DESCENDANTS: &#123;</span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">boolean</span> took = <span class="keyword">super</span>.requestFocus(direction, previouslyFocusedRect);</span><br><span class="line">              result = took ? took : onRequestFocusInDescendants(direction,</span><br><span class="line">                      previouslyFocusedRect);</span><br><span class="line">              <span class="keyword">break</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">//在子view之后，先遍历子View，让子View处理，如果它们都不处理，则再自己处理</span></span><br><span class="line">          <span class="keyword">case</span> FOCUS_AFTER_DESCENDANTS: &#123;</span><br><span class="line">              <span class="keyword">final</span> <span class="keyword">boolean</span> took = onRequestFocusInDescendants(direction, previouslyFocusedRect);</span><br><span class="line">              result = took ? took : <span class="keyword">super</span>.requestFocus(direction, previouslyFocusedRect);</span><br><span class="line">              <span class="keyword">break</span>;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">default</span>:</span><br><span class="line">              <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"descendant focusability must be "</span></span><br><span class="line">                      + <span class="string">"one of FOCUS_BEFORE_DESCENDANTS, FOCUS_AFTER_DESCENDANTS, FOCUS_BLOCK_DESCENDANTS "</span></span><br><span class="line">                      + <span class="string">"but is "</span> + descendantFocusability);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (result &amp;&amp; !isLayoutValid() &amp;&amp; ((mPrivateFlags &amp; PFLAG_WANTS_FOCUS) == <span class="number">0</span>)) &#123;</span><br><span class="line">          mPrivateFlags |= PFLAG_WANTS_FOCUS;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> result;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure></p>
+<p>在这个方法中ViewGroup根据自己相对子View获得焦点的顺序来确认调用方法的顺序。从代码中可以看出如果一个ViewGroup要获得焦点它的逻辑和View是一样的，而且由于ViewGroup默认设置了FOCUS_BEFORE_DESCENDANTS，如果它再设置focusable为true，它的想获得焦点的儿子们就不要指望爸爸主动给焦点了😂，只能通过自己的requestFocus去获得。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>简短总结一下本篇的内容：  </p>
+<ol>
+<li>View的焦点模式可以使用focusable属性定义，也与clickable属性有关联</li>
+<li>ViewGroup在View的基础上定义了自己相对于子View的处理焦点的顺序  </li>
+<li>View通过requestFocus方法获得焦点  </li>
+<li>ViewGroup复写了requestFocus方法，加入了顺序判断   </li>
+</ol>
+<p>到这里按键事件的分发和获得焦点的过程分析完毕，但事情还没完，当按下按键时会发现焦点会在View之间移动，那按键事件是怎么转换为焦点View的变化的呢？请看下篇分析： Android TV开发按键与焦点深入解析（三）–按键事件转换成焦点移动的过程</p>
+
+      
+    </div>
+
+    
+
+    
+    
+    
+
+    
+
+    
+      
+    
+    
+
+    
+      <div>
+        
+
+
+
+
+  
+
+
+
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>chenxin</li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    
+    <a href="https://msisuzney.github.io/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/" title="Android TV开发按键与焦点深入解析（二）--View的焦点">https://msisuzney.github.io/2019/08/27/Android-TV开发按键与焦点深入解析（二）-View的焦点/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.zh" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i>BY-NC</a> 许可协议。转载请注明出处！</li>
+</ul>
+
+      </div>
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/android/" rel="tag"># android</a>
+          
+            <a href="/tags/android-TV开发/" rel="tag"># android TV开发</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/08/24/Android-TV开发按键与焦点深入分析（一）-KeyEvent的分发/" rel="next" title="Android-TV开发按键与焦点深入分析（一）--KeyEvent的分发.">
+                <i class="fa fa-chevron-left"></i> Android-TV开发按键与焦点深入分析（一）--KeyEvent的分发.
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+  </div>
+
+
+          </div>
+          
+
+  
+    <div class="comments" id="comments">
+    </div>
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="https://tva4.sinaimg.cn/crop.0.0.664.664.180/b07d2822jw8fb0vsx3wptj20ig0igmys.jpg" alt="chenxin">
+            
+              <p class="site-author-name" itemprop="name">chenxin</p>
+              <div class="site-description motion-element" itemprop="description">时光的烂笔头</div>
+          </div>
+
+          
+            <nav class="site-state motion-element">
+              
+                <div class="site-state-item site-state-posts">
+                
+                  <a href="/archives/">
+                
+                    <span class="site-state-item-count">6</span>
+                    <span class="site-state-item-name">日志</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-categories">
+                  
+                    
+                      <a href="/categories/">
+                    
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">2</span>
+                    <span class="site-state-item-name">分类</span>
+                  </a>
+                </div>
+              
+
+              
+                
+                
+                <div class="site-state-item site-state-tags">
+                  
+                    
+                      <a href="/tags/">
+                    
+                  
+                    
+                    
+                      
+                    
+                      
+                    
+                      
+                    
+                    <span class="site-state-item-count">3</span>
+                    <span class="site-state-item-name">标签</span>
+                  </a>
+                </div>
+              
+            </nav>
+          
+
+          
+
+          
+
+          
+            <div class="links-of-author motion-element">
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="mailto:chenxin7930@qq.com" title="E-Mail &rarr; mailto:chenxin7930@qq.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                </span>
+              
+                <span class="links-of-author-item">
+                  
+                  
+                    
+                  
+                  
+                    
+                  
+                  <a href="https://www.weibo.com/chenxin7930" title="Weibo &rarr; https://www.weibo.com/chenxin7930" rel="noopener" target="_blank"><i class="fa fa-fw fa-weibo"></i>Weibo</a>
+                </span>
+              
+            </div>
+          
+
+          
+             <div class="cc-license motion-element" itemprop="license">
+              
+              
+                
+              
+              
+              
+              <a href="https://creativecommons.org/licenses/by-nc/4.0/deed.zh" class="cc-opacity" rel="noopener" target="_blank"><img src="/images/cc-by-nc.svg" alt="Creative Commons"></a>
+             </div>
+          
+
+          
+          
+
+          
+            
+          
+          
+
+        </div>
+      </div>
+
+      
+      <!--noindex-->
+        <div class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+            
+            
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#View的焦点模式"><span class="nav-number">1.</span> <span class="nav-text">View的焦点模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ViewGroup的焦点模式"><span class="nav-number">2.</span> <span class="nav-text">ViewGroup的焦点模式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#View的requestFocus方法"><span class="nav-number">3.</span> <span class="nav-text">View的requestFocus方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ViewGroup的requestFocus方法"><span class="nav-number">4.</span> <span class="nav-text">ViewGroup的requestFocus方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </div>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+  
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love" id="animate">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">chenxin</span>
+
+  
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a href="https://hexo.io" class="theme-link" rel="noopener" target="_blank">Hexo</a> 强力驱动 v3.8.0</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 – <a href="https://theme-next.org" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> v7.1.1</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+    
+
+    
+  </div>
+
+  
+
+<script>
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+
+  
+
+
+  <script src="/js/utils.js?v=7.1.1"></script>
+
+  <script src="/js/motion.js?v=7.1.1"></script>
+
+
+
+  
+  
+
+
+  <script src="/js/schemes/muse.js?v=7.1.1"></script>
+
+
+
+  
+  <script src="/js/scrollspy.js?v=7.1.1"></script>
+<script src="/js/post-details.js?v=7.1.1"></script>
+
+
+
+  
+
+
+  <script src="/js/next-boot.js?v=7.1.1"></script>
+
+
+  
+
+  
+
+  
+
+  
+  
+
+<script src="//cdn1.lncld.net/static/js/3.11.1/av-min.js"></script>
+
+
+
+<script src="//unpkg.com/valine/dist/Valine.min.js"></script>
+
+<script>
+  var GUEST = ['nick', 'mail', 'link'];
+  var guest = 'nick,mail,link';
+  guest = guest.split(',').filter(function(item) {
+    return GUEST.indexOf(item) > -1;
+  });
+  new Valine({
+    el: '#comments',
+    verify: false,
+    notify: true,
+    appId: 'WGfb4ckJ3uaILKKchogouzqf-gzGzoHsz',
+    appKey: 'A2llDVSFREzNMaKeJVlby4lW',
+    placeholder: '写点什么吧～',
+    avatar: 'mm',
+    meta: guest,
+    pageSize: '10' || 10,
+    visitor: false,
+    lang: 'zh-cn' || 'zh-cn'
+  });
+</script>
+
+
+
+
+  
+
+
+  
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
