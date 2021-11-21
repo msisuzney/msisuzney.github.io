@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="上两篇文章分别单独分析了KeyEvent在View树中分发和View获得焦点的过程，实际上这两个并不是独立的，当我们按下按键的时候会发现如果我们不拦截按键事件，按键事件就会转换成焦点View的切换，现在就开始分析这个转换的过程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android TV开发按键与焦点深入分析（三）--按键事件转换成焦点移动的过程">
+<meta property="og:url" content="http://example.com/2020/09/14/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%89%EF%BC%89-%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6%E8%BD%AC%E6%8D%A2%E6%88%90%E7%84%A6%E7%82%B9%E7%A7%BB%E5%8A%A8%E7%9A%84%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:description" content="上两篇文章分别单独分析了KeyEvent在View树中分发和View获得焦点的过程，实际上这两个并不是独立的，当我们按下按键的时候会发现如果我们不拦截按键事件，按键事件就会转换成焦点View的切换，现在就开始分析这个转换的过程。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right1.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right2.png">
+<meta property="article:published_time" content="2020-09-14T15:58:50.000Z">
+<meta property="article:modified_time" content="2021-11-21T06:15:52.871Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right.png">
+
+<link rel="canonical" href="http://example.com/2020/09/14/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%89%EF%BC%89-%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6%E8%BD%AC%E6%8D%A2%E6%88%90%E7%84%A6%E7%82%B9%E7%A7%BB%E5%8A%A8%E7%9A%84%E8%BF%87%E7%A8%8B/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android TV开发按键与焦点深入分析（三）--按键事件转换成焦点移动的过程 | Chenxin's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">2</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">8</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/09/14/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%89%EF%BC%89-%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6%E8%BD%AC%E6%8D%A2%E6%88%90%E7%84%A6%E7%82%B9%E7%A7%BB%E5%8A%A8%E7%9A%84%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android TV开发按键与焦点深入分析（三）--按键事件转换成焦点移动的过程
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-09-14 23:58:50" itemprop="dateCreated datePublished" datetime="2020-09-14T23:58:50+08:00">2020-09-14</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-11-21 14:15:52" itemprop="dateModified" datetime="2021-11-21T14:15:52+08:00">2021-11-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android-TV/" itemprop="url" rel="index"><span itemprop="name">android TV</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>上两篇文章分别单独分析了<strong>KeyEvent在View树中分发</strong>和<strong>View获得焦点的过程</strong>，实际上这两个并不是独立的，当我们按下按键的时候会发现如果我们不拦截按键事件，按键事件就会转换成焦点View的切换，现在就开始分析这个转换的过程。</p>
+<span id="more"></span>  
+<h3 id="ViewRootImpl中的整体过程"><a href="#ViewRootImpl中的整体过程" class="headerlink" title="ViewRootImpl中的整体过程"></a>ViewRootImpl中的整体过程</h3><p>第一篇中提到过KeyEvent在View树中分发是有Boolean返回值的，代码注解如下：<br> <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">View中</span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Dispatch a key event to the next view on the focus path. This path runs</span></span><br><span class="line"><span class="comment">     * from the top of the view tree down to the currently focused view. If this</span></span><br><span class="line"><span class="comment">     * view has focus, it will dispatch to itself. Otherwise it will dispatch</span></span><br><span class="line"><span class="comment">     * the next node down the focus path. This method also fires any key</span></span><br><span class="line"><span class="comment">     * listeners.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> event The key event to be dispatched.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> True if the event was handled, false otherwise.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchKeyEvent</span><span class="params">(KeyEvent event)</span></span></span><br></pre></td></tr></table></figure><br>返回true代表这个按键事件已经被消耗掉了，false代表还没被消耗。默认返回的是fasle，只有我们在这个过程中想要拦截、处理了按键事件，才会返回true。<br>最后会把这个结果向上一层一层地反馈到按键事件产生的位置，这个位置就是ViewRootImpl的processKeyEvent方法中，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">ViewRootImpl中</span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">processKeyEvent</span><span class="params">(QueuedInputEvent q)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">final</span> KeyEvent event = (KeyEvent)q.mEvent;</span><br><span class="line"></span><br><span class="line">            ......</span><br><span class="line"></span><br><span class="line">            <span class="comment">// Deliver the key to the view hierarchy.</span></span><br><span class="line">            <span class="keyword">if</span> (mView.dispatchKeyEvent(event)) &#123;<span class="comment">//View树中分发按键事件</span></span><br><span class="line">                <span class="keyword">return</span> FINISH_HANDLED;<span class="comment">//被处理了</span></span><br><span class="line">            &#125;</span><br><span class="line">        	<span class="comment">//没被处理</span></span><br><span class="line">    		.......</span><br><span class="line">            <span class="comment">// Handle automatic focus changes.</span></span><br><span class="line">            <span class="keyword">if</span> (event.getAction() == KeyEvent.ACTION_DOWN) &#123;</span><br><span class="line">                <span class="keyword">if</span> (groupNavigationDirection != <span class="number">0</span>) &#123;</span><br><span class="line">                    <span class="keyword">if</span> (performKeyboardGroupNavigation(groupNavigationDirection)) &#123;</span><br><span class="line">                        <span class="keyword">return</span> FINISH_HANDLED;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;<span class="comment">//寻找焦点View</span></span><br><span class="line">                    <span class="keyword">if</span> (performFocusNavigation(event)) &#123;</span><br><span class="line">                        <span class="keyword">return</span> FINISH_HANDLED;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>mView就是DecorView，是否已被消耗的结果的终点就是这里。如果是被消耗了就直接返回，没有，那就调用performFocusNavigation方法，从方法名字就可以看出这个方法就是要将按键事件转换成焦点的移动，方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">ViewRootImpl中</span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">performFocusNavigation</span><span class="params">(KeyEvent event)</span> </span>&#123;</span><br><span class="line">            <span class="keyword">int</span> direction = <span class="number">0</span>;</span><br><span class="line">            <span class="comment">//将按键事件的上下左右转换成焦点移动方向的上下左右</span></span><br><span class="line">            <span class="keyword">switch</span> (event.getKeyCode()) &#123;</span><br><span class="line">                <span class="keyword">case</span> KeyEvent.KEYCODE_DPAD_LEFT:</span><br><span class="line">                    <span class="keyword">if</span> (event.hasNoModifiers()) &#123;</span><br><span class="line">                        direction = View.FOCUS_LEFT;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">case</span> KeyEvent.KEYCODE_DPAD_RIGHT:</span><br><span class="line">                    <span class="keyword">if</span> (event.hasNoModifiers()) &#123;</span><br><span class="line">                        direction = View.FOCUS_RIGHT;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">case</span> KeyEvent.KEYCODE_DPAD_UP:</span><br><span class="line">                    <span class="keyword">if</span> (event.hasNoModifiers()) &#123;</span><br><span class="line">                        direction = View.FOCUS_UP;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">case</span> KeyEvent.KEYCODE_DPAD_DOWN:</span><br><span class="line">                    <span class="keyword">if</span> (event.hasNoModifiers()) &#123;</span><br><span class="line">                        direction = View.FOCUS_DOWN;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                <span class="keyword">case</span> KeyEvent.KEYCODE_TAB:</span><br><span class="line">                    <span class="keyword">if</span> (event.hasNoModifiers()) &#123;</span><br><span class="line">                        direction = View.FOCUS_FORWARD;</span><br><span class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (event.hasModifiers(KeyEvent.META_SHIFT_ON)) &#123;</span><br><span class="line">                        direction = View.FOCUS_BACKWARD;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (direction != <span class="number">0</span>) &#123;</span><br><span class="line">                View focused = mView.findFocus();<span class="comment">//找出此时这个有焦点的View</span></span><br><span class="line">                <span class="keyword">if</span> (focused != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="comment">//调用它的focusSearch方法，顾名思义寻找这个方向上的下一个获得焦点的View</span></span><br><span class="line">                    View v = focused.focusSearch(direction);</span><br><span class="line">                    <span class="keyword">if</span> (v != <span class="keyword">null</span> &amp;&amp; v != focused) &#123;</span><br><span class="line">                        <span class="comment">// do the math the get the interesting rect</span></span><br><span class="line">                        <span class="comment">// of previous focused into the coord system of</span></span><br><span class="line">                        <span class="comment">// newly focused view</span></span><br><span class="line">                        focused.getFocusedRect(mTempRect);</span><br><span class="line">                        <span class="keyword">if</span> (mView <span class="keyword">instanceof</span> ViewGroup) &#123;</span><br><span class="line">                            ((ViewGroup) mView).offsetDescendantRectToMyCoords(</span><br><span class="line">                                    focused, mTempRect);</span><br><span class="line">                            ((ViewGroup) mView).offsetRectIntoDescendantCoords(</span><br><span class="line">                                    v, mTempRect);</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="comment">//调用它的requestFocus，让它获得焦点</span></span><br><span class="line">                        <span class="keyword">if</span> (v.requestFocus(direction, mTempRect)) &#123;</span><br><span class="line">                            playSoundEffect(SoundEffectConstants</span><br><span class="line">                                    .getContantForFocusDirection(direction));</span><br><span class="line">                            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    <span class="comment">// Give the focused view a last chance to handle the dpad key.</span></span><br><span class="line">                    <span class="keyword">if</span> (mView.dispatchUnhandledMove(focused, direction)) &#123;</span><br><span class="line">                        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (mView.restoreDefaultFocus()) &#123;</span><br><span class="line">                        <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br></pre></td></tr></table></figure>
+<p>这个方法中一气呵成完成了按键事件转换成焦点View变化的全部过程，可以概括为以下4个步骤：</p>
+<ol>
+<li><strong>将按键事件的上下左右转换成焦点移动方向的上下左右</strong></li>
+<li><strong>找出View树中有焦点的View</strong></li>
+<li><strong>调用焦点View的focusSearch方法寻找下一个获得焦点的View</strong></li>
+<li><strong>调用下一个获得焦点的View的requestFocus方法，让它获得焦点</strong>  </li>
+</ol>
+<p>下面分别分析第2、3步的过程，第4步请看上一篇的分析</p>
+<h3 id="寻找有焦点的View"><a href="#寻找有焦点的View" class="headerlink" title="寻找有焦点的View"></a>寻找有焦点的View</h3><p>调用的是View的findFocus方法，ViewGroup和View的findFoucs方法分别如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">ViewGroup中</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">findFocus</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (isFocused()) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (mFocused != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> mFocused.findFocus();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;    </span><br><span class="line">View中</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">isFocused</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (mPrivateFlags &amp; PFLAG_FOCUSED) != <span class="number">0</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">View中</span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">findFocus</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (mPrivateFlags &amp; PFLAG_FOCUSED) != <span class="number">0</span> ? <span class="keyword">this</span> : <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>寻找的依据就是上一篇中分析的PFLAG_FOCUSED标志位以及ViewGroup的mFocused成员变量，首先是ViewGroup判断自己是不是有焦点，然后再判断自己是不是包含了有焦点的子View，多次按照焦点的路径遍历就找出了焦点View。  </p>
+<h3 id="寻找下一个获得焦点的View"><a href="#寻找下一个获得焦点的View" class="headerlink" title="寻找下一个获得焦点的View"></a>寻找下一个获得焦点的View</h3><h4 id="View的focusSearch方法"><a href="#View的focusSearch方法" class="headerlink" title="View的focusSearch方法"></a>View的focusSearch方法</h4><p>此刻已经找出了焦点View，需要调用它的focusSearch去寻找下一个焦点View，View的focusSearch方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">View中</span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">focusSearch</span><span class="params">(<span class="meta">@FocusRealDirection</span> <span class="keyword">int</span> direction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (mParent != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> mParent.focusSearch(<span class="keyword">this</span>, direction);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>直接调用了它的父View的方法，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">ViewGroup中</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">focusSearch</span><span class="params">(View focused, <span class="keyword">int</span> direction)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (isRootNamespace()) &#123;</span><br><span class="line">            <span class="comment">// root namespace means we should consider ourselves the top of the</span></span><br><span class="line">            <span class="comment">// tree for focus searching; otherwise we could be focus searching</span></span><br><span class="line">            <span class="comment">// into other tabs.  see LocalActivityManager and TabHost for more info.</span></span><br><span class="line">            <span class="keyword">return</span> FocusFinder.getInstance().findNextFocus(<span class="keyword">this</span>, focused, direction);</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mParent != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> mParent.focusSearch(focused, direction);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>ViewGroup重写了这个方法，如果自己是RootNamespace那就调用FocusFinder去寻找View，但什么时候isRootNamespace()成立，我现在还没遇到过，所以一般情况下最后会调用到ViewRootImpl的focusSearch方法，这个方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ViewRootImpl中</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> View <span class="title">focusSearch</span><span class="params">(View focused, <span class="keyword">int</span> direction)</span> </span>&#123;</span><br><span class="line">        checkThread();</span><br><span class="line">        <span class="keyword">if</span> (!(mView <span class="keyword">instanceof</span> ViewGroup)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> FocusFinder.getInstance().findNextFocus((ViewGroup) mView, focused, direction);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>殊途同归，最后还是调用了FocusFinder去寻找View，看来寻找下一个焦点View的重任全部都封装在了这个FocusFinder类中。</p>
+<h4 id="FocusFinder单例"><a href="#FocusFinder单例" class="headerlink" title="FocusFinder单例"></a>FocusFinder单例</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ThreadLocal&lt;FocusFinder&gt; tlFocusFinder =</span><br><span class="line">           <span class="keyword">new</span> ThreadLocal&lt;FocusFinder&gt;() &#123;</span><br><span class="line">               <span class="meta">@Override</span></span><br><span class="line">               <span class="function"><span class="keyword">protected</span> FocusFinder <span class="title">initialValue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                   <span class="keyword">return</span> <span class="keyword">new</span> FocusFinder();</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;;</span><br><span class="line"></span><br><span class="line">   <span class="comment">/**</span></span><br><span class="line"><span class="comment">    * Get the focus finder for this thread.</span></span><br><span class="line"><span class="comment">    */</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> FocusFinder <span class="title">getInstance</span><span class="params">()</span> </span>&#123;</span><br><span class="line">       <span class="keyword">return</span> tlFocusFinder.get();</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>值得注意的是FocusFinder居然是线程单例的，而不是进程单例的，这样做的原因大概是一方面发挥单例优势，避免频繁创建FocusFinder，毕竟这是一个比较基本的功能，节约资源提高效率；另一方面，万一其他线程也要调用FocusFinder去做一些寻找View的事情，如果进程单例那不就影响主线程的效率了？所以线程单例最合适吧。</p>
+<h4 id="添加所有可以获得焦点的View"><a href="#添加所有可以获得焦点的View" class="headerlink" title="添加所有可以获得焦点的View"></a>添加所有可以获得焦点的View</h4><p>言归正传，继续看它的findNextFocus方法，如下：<br> <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">FocusFinder中</span><br><span class="line"><span class="function"><span class="keyword">private</span> View <span class="title">findNextFocus</span><span class="params">(ViewGroup root, View focused, Rect focusedRect, <span class="keyword">int</span> direction)</span> </span>&#123;</span><br><span class="line">        View next = <span class="keyword">null</span>;</span><br><span class="line">        <span class="comment">//找出焦点跳转View的范围</span></span><br><span class="line">        ViewGroup effectiveRoot = getEffectiveRoot(root, focused);</span><br><span class="line">        <span class="keyword">if</span> (focused != <span class="keyword">null</span>) &#123;<span class="comment">//找出在xml中指定的该方向的下一个获得焦点的View</span></span><br><span class="line">            next = findNextUserSpecifiedFocus(effectiveRoot, focused, direction);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (next != <span class="keyword">null</span>) &#123;<span class="comment">//指定了直接返回</span></span><br><span class="line">            <span class="keyword">return</span> next;</span><br><span class="line">        &#125;</span><br><span class="line">        ArrayList&lt;View&gt; focusables = mTempList;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            focusables.clear();</span><br><span class="line">            <span class="comment">//从最顶点，将所有可以获得焦点的View添加到focusables中</span></span><br><span class="line">            effectiveRoot.addFocusables(focusables, direction);</span><br><span class="line">            <span class="keyword">if</span> (!focusables.isEmpty()) &#123;</span><br><span class="line">                <span class="comment">//从中找出下一个可以获得焦点的View</span></span><br><span class="line">                next = findNextFocus(effectiveRoot, focused, focusedRect, direction, focusables);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            focusables.clear();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> next;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure><br>首先找出焦点跳转的View的范围，我这里测试时effectiveRoot就是DecorView，也就是整个View树中View都在考虑的范围内。然后调用findNextUserSpecifiedFocus方法去获取我们手动为这个View设置的上下左右的焦点View，对应xml布局中的android:nextFocusXX</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">android:nextFocusDown=<span class="string">&quot;@id/textView&quot;</span></span><br><span class="line">android:nextFocusLeft=<span class="string">&quot;@id/textView&quot;</span></span><br><span class="line">android:nextFocusRight=<span class="string">&quot;@id/textView&quot;</span></span><br><span class="line">android:nextFocusUp=<span class="string">&quot;@id/textView&quot;</span></span><br></pre></td></tr></table></figure>
+<p>如果设置了，那就直接返回设置的View，没有则继续寻找，addFocusables方法把View树中所有可能获得焦点的View都放进了focusables这个list中。<br>ViewGroup中的addFocusables方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">ViewGroup中</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addFocusables</span><span class="params">(ArrayList&lt;View&gt; views, <span class="keyword">int</span> direction, <span class="keyword">int</span> focusableMode)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">int</span> focusableCount = views.size();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">int</span> descendantFocusability = getDescendantFocusability();</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">boolean</span> blockFocusForTouchscreen = shouldBlockFocusForTouchscreen();</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">boolean</span> focusSelf = (isFocusableInTouchMode() || !blockFocusForTouchscreen);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (descendantFocusability == FOCUS_BLOCK_DESCENDANTS) &#123;<span class="comment">//拦截了焦点，只判断、添加自己</span></span><br><span class="line">            <span class="keyword">if</span> (focusSelf) &#123;</span><br><span class="line">                <span class="keyword">super</span>.addFocusables(views, direction, focusableMode);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (blockFocusForTouchscreen) &#123;</span><br><span class="line">            focusableMode |= FOCUSABLES_TOUCH_MODE;</span><br><span class="line">        &#125;</span><br><span class="line">		<span class="comment">//在所有子View之前添加自己到views</span></span><br><span class="line">        <span class="keyword">if</span> ((descendantFocusability == FOCUS_BEFORE_DESCENDANTS) &amp;&amp; focusSelf) &#123;</span><br><span class="line">            <span class="keyword">super</span>.addFocusables(views, direction, focusableMode);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> count = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">final</span> View[] children = <span class="keyword">new</span> View[mChildrenCount];</span><br><span class="line">        <span class="comment">//挑出可见的View</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; mChildrenCount; ++i) &#123;</span><br><span class="line">            View child = mChildren[i];</span><br><span class="line">            <span class="keyword">if</span> ((child.mViewFlags &amp; VISIBILITY_MASK) == VISIBLE) &#123;</span><br><span class="line">                children[count++] = child;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">//对所有子View排序</span></span><br><span class="line">        FocusFinder.sort(children, <span class="number">0</span>, count, <span class="keyword">this</span>, isLayoutRtl());</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; count; ++i) &#123;<span class="comment">//把所有子View按顺序添加到views</span></span><br><span class="line">            children[i].addFocusables(views, direction, focusableMode);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// When set to FOCUS_AFTER_DESCENDANTS, we only add ourselves if</span></span><br><span class="line">        <span class="comment">// there aren&#x27;t any focusable descendants.  this is</span></span><br><span class="line">        <span class="comment">// to avoid the focus search finding layouts when a more precise search</span></span><br><span class="line">        <span class="comment">// among the focusable children would be more interesting.</span></span><br><span class="line">        <span class="keyword">if</span> ((descendantFocusability == FOCUS_AFTER_DESCENDANTS) &amp;&amp; focusSelf</span><br><span class="line">                &amp;&amp; focusableCount == views.size()) &#123;</span><br><span class="line">            <span class="keyword">super</span>.addFocusables(views, direction, focusableMode);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>如果ViewGroup拦截焦点，那就不用再考虑子View了；如果ViewGroup在子View之前获得焦点，那就先添加，反之后添加；对于兄弟View，在添加之前还要对它们进行排序，排序的依据是从上到下、从左到右。   </p>
+<p>View的addFocusables方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addFocusables</span><span class="params">(ArrayList&lt;View&gt; views, <span class="meta">@FocusDirection</span> <span class="keyword">int</span> direction,</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="meta">@FocusableMode</span> <span class="keyword">int</span> focusableMode)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (views == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!canTakeFocus()) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> ((focusableMode &amp; FOCUSABLES_TOUCH_MODE) == FOCUSABLES_TOUCH_MODE</span><br><span class="line">            &amp;&amp; !isFocusableInTouchMode()) &#123;</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    views.add(<span class="keyword">this</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>直接判断自己是否可以获得焦点，可以的话就把自己加到views中去。</p>
+<p>到这里所有的可以获得焦点的View 都被添加到了focusables中去了，在这个过程中与方向还没有关系，只是枚举添加了所有可能的View。</p>
+<h4 id="寻找最优View"><a href="#寻找最优View" class="headerlink" title="寻找最优View"></a>寻找最优View</h4><p>有了focusables列表，这时调用同名方法findNextFocus在focusables找出最合适的那个View，方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> View <span class="title">findNextFocus</span><span class="params">(ViewGroup root, View focused, Rect focusedRect,</span></span></span><br><span class="line"><span class="params"><span class="function">            <span class="keyword">int</span> direction, ArrayList&lt;View&gt; focusables)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (focused != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">if</span> (focusedRect == <span class="keyword">null</span>) &#123;</span><br><span class="line">                focusedRect = mFocusedRect;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// fill in interesting rect from focused</span></span><br><span class="line">            focused.getFocusedRect(focusedRect);</span><br><span class="line">            <span class="comment">//将focused的坐标变成rootView下的坐标</span></span><br><span class="line">            root.offsetDescendantRectToMyCoords(focused, focusedRect);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">           ......</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">switch</span> (direction) &#123;</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_FORWARD:</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_BACKWARD:</span><br><span class="line">                <span class="keyword">return</span> findNextFocusInRelativeDirection(focusables, root, focused, focusedRect,</span><br><span class="line">                        direction);</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_UP:</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_DOWN:</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_LEFT:</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_RIGHT:</span><br><span class="line"></span><br><span class="line">                <span class="keyword">return</span> findNextFocusInAbsoluteDirection(focusables, root, focused,</span><br><span class="line">                        focusedRect, direction);</span><br><span class="line">            <span class="keyword">default</span>:</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;Unknown direction: &quot;</span> + direction);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">```  </span><br><span class="line">到这里，寻找的才与方向有关，下面的分析以按右键为例，对应的是View.FOCUS_RIGHT，调用了findNextFocusInAbsoluteDirection方法：</span><br><span class="line">```<span class="function">java</span></span><br><span class="line"><span class="function">View <span class="title">findNextFocusInAbsoluteDirection</span><span class="params">(ArrayList&lt;View&gt; focusables, ViewGroup root, View focused,</span></span></span><br><span class="line"><span class="params"><span class="function">            Rect focusedRect, <span class="keyword">int</span> direction)</span> </span>&#123;</span><br><span class="line">        <span class="comment">// initialize the best candidate to something impossible</span></span><br><span class="line">        <span class="comment">// (so the first plausible view will become the best choice)</span></span><br><span class="line">        mBestCandidateRect.set(focusedRect);</span><br><span class="line">        <span class="keyword">switch</span>(direction) &#123;</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_LEFT:</span><br><span class="line">                mBestCandidateRect.offset(focusedRect.width() + <span class="number">1</span>, <span class="number">0</span>);</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_RIGHT:<span class="comment">//向右寻找时，将初始的位置设为当前View的最左边</span></span><br><span class="line">                mBestCandidateRect.offset(-(focusedRect.width() + <span class="number">1</span>), <span class="number">0</span>);</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_UP:</span><br><span class="line">                mBestCandidateRect.offset(<span class="number">0</span>, focusedRect.height() + <span class="number">1</span>);</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            <span class="keyword">case</span> View.FOCUS_DOWN:</span><br><span class="line">                mBestCandidateRect.offset(<span class="number">0</span>, -(focusedRect.height() + <span class="number">1</span>));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        View closest = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> numFocusables = focusables.size();</span><br><span class="line">     	<span class="comment">//遍历所有的可获得焦点的View</span></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; numFocusables; i++) &#123;</span><br><span class="line">            View focusable = focusables.get(i);</span><br><span class="line">            <span class="comment">//排除自己</span></span><br><span class="line">            <span class="comment">// only interested in other non-root views</span></span><br><span class="line">            <span class="keyword">if</span> (focusable == focused || focusable == root) <span class="keyword">continue</span>;</span><br><span class="line">            <span class="comment">//获得这个View的rect，并把它调整到和focusedRect一致</span></span><br><span class="line">            <span class="comment">// get focus bounds of other view in same coordinate system</span></span><br><span class="line">            focusable.getFocusedRect(mOtherRect);</span><br><span class="line">            root.offsetDescendantRectToMyCoords(focusable, mOtherRect);</span><br><span class="line">			<span class="comment">//判断这个View是不是比mBestCandidateRect更优</span></span><br><span class="line">            <span class="keyword">if</span> (isBetterCandidate(direction, focusedRect, mOtherRect, mBestCandidateRect)) &#123;</span><br><span class="line">                <span class="comment">//更优，那么将它设置成mBestCandidateRect，并将closest赋值</span></span><br><span class="line">                mBestCandidateRect.set(mOtherRect);</span><br><span class="line">                closest = focusable;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> closest;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>实际上寻找的过程就是在比较各个View的占用区域的相对关系，这里首先设置了一个mBestCandidateRect代表最合适的View的区域，对于向右，是焦点View左边间距一像素的同等大小的一个区域，显然这是最不合适的区域，这只是一个初始值。然后就开始遍历所有可能的View，调用isBetterCandidate方法去判断，这里就不展开这个方法，太啰嗦了，用下面的图代替。<br>假如下图中View1此时有焦点，按下右键时会怎么样呢？<br><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right.png">  </p>
+<p>实际上判断的依据和下图中的画的各种虚线有关  </p>
+<p><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right1.png" alt="foucs_right">   </p>
+<p>按下右键，初始的最佳区域就是红色虚线框的位置，显示是最不适合的，然后再遍历所有的可能的View，满足以下两点才可以击败红色虚线框的位置成为待选的View：</p>
+<ol>
+<li><strong>以紫色虚线作为标准，View的右边线必须在紫色虚线的右边</strong></li>
+<li><strong>以黑色虚线作为标准，View的左边线必须在黑色虚线的右边</strong>  </li>
+</ol>
+<p>显然View2和View3都满足，这时就需要进一步的比较了，进一步比较需要参考View的上下两边，满足以下两点的最优：</p>
+<ol>
+<li><strong>View的下边线在上面的那条蓝色虚线之下</strong></li>
+<li><strong>View的上边线在下面的那条蓝色虚线之上</strong>  </li>
+</ol>
+<p>也就是这个View的与焦点View在上下两边上有重叠的区域就可以了，所以View3是最优的位置，View3将获得焦点。<br>还有一种情况，要是两个View都与焦点View在上下两边有重叠的区域，那谁更优呢？如下：<br><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/7_focus_right2.png" alt="foucs_right"></p>
+<p>对于向右寻找焦点，这时判断的依据就和图中的两个距离箭头major和minor的长度有关，计算的公式$distance=13*major^2+minor^2$，distance越小越有优，13是一个常量系数，表示以左右间距作为主要的判断依据，但不排除上下间距逆袭的可能，所以越靠近焦点View的中心，就越有可能获得焦点。<br>调试的布局如下，可以微微调整bias，验证结论。</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">android.support.constraint.ConstraintLayout</span></span></span><br><span class="line"><span class="tag">        <span class="attr">xmlns:android</span>=<span class="string">&quot;http://schemas.android.com/apk/res/android&quot;</span></span></span><br><span class="line"><span class="tag">        <span class="attr">xmlns:app</span>=<span class="string">&quot;http://schemas.android.com/apk/res-auto&quot;</span> <span class="attr">xmlns:tools</span>=<span class="string">&quot;http://schemas.android.com/tools&quot;</span></span></span><br><span class="line"><span class="tag">        <span class="attr">android:layout_height</span>=<span class="string">&quot;match_parent&quot;</span></span></span><br><span class="line"><span class="tag">        <span class="attr">android:layout_width</span>=<span class="string">&quot;match_parent&quot;</span>&gt;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">TextView</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:text</span>=<span class="string">&quot;View1&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:background</span>=<span class="string">&quot;@drawable/bg&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:focusable</span>=<span class="string">&quot;true&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:gravity</span>=<span class="string">&quot;center&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_width</span>=<span class="string">&quot;55dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_height</span>=<span class="string">&quot;344dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:id</span>=<span class="string">&quot;@+id/textView&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintEnd_toStartOf</span>=<span class="string">&quot;@id/guideline2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintTop_toTopOf</span>=<span class="string">&quot;parent&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintHorizontal_bias</span>=<span class="string">&quot;0.99&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintBottom_toBottomOf</span>=<span class="string">&quot;parent&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintStart_toStartOf</span>=<span class="string">&quot;parent&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">TextView</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:text</span>=<span class="string">&quot;View2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:background</span>=<span class="string">&quot;@drawable/bg&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:focusable</span>=<span class="string">&quot;true&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_width</span>=<span class="string">&quot;60dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:gravity</span>=<span class="string">&quot;center&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_height</span>=<span class="string">&quot;50dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:id</span>=<span class="string">&quot;@+id/textView2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintStart_toStartOf</span>=<span class="string">&quot;@+id/guideline2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintEnd_toEndOf</span>=<span class="string">&quot;parent&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintTop_toTopOf</span>=<span class="string">&quot;parent&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintHorizontal_bias</span>=<span class="string">&quot;0.1&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintBottom_toTopOf</span>=<span class="string">&quot;@+id/guideline&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintVertical_bias</span>=<span class="string">&quot;0.7&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">TextView</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:text</span>=<span class="string">&quot;View3&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:background</span>=<span class="string">&quot;@drawable/bg&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:focusable</span>=<span class="string">&quot;true&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_width</span>=<span class="string">&quot;60dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:gravity</span>=<span class="string">&quot;center&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_height</span>=<span class="string">&quot;50dp&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:id</span>=<span class="string">&quot;@+id/textView3&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintStart_toStartOf</span>=<span class="string">&quot;@+id/guideline2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintVertical_bias</span>=<span class="string">&quot;0.3&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintEnd_toEndOf</span>=<span class="string">&quot;parent&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintTop_toTopOf</span>=<span class="string">&quot;@+id/guideline&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintHorizontal_bias</span>=<span class="string">&quot;0.1&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintBottom_toBottomOf</span>=<span class="string">&quot;parent&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">android.support.constraint.Guideline</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_width</span>=<span class="string">&quot;wrap_content&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_height</span>=<span class="string">&quot;wrap_content&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintGuide_percent</span>=<span class="string">&quot;0.3&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:id</span>=<span class="string">&quot;@+id/guideline2&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:orientation</span>=<span class="string">&quot;vertical&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">android.support.constraint.Guideline</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_width</span>=<span class="string">&quot;wrap_content&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:layout_height</span>=<span class="string">&quot;wrap_content&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">app:layout_constraintGuide_percent</span>=<span class="string">&quot;0.5&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:id</span>=<span class="string">&quot;@+id/guideline&quot;</span></span></span><br><span class="line"><span class="tag">            <span class="attr">android:orientation</span>=<span class="string">&quot;horizontal&quot;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">android.support.constraint.ConstraintLayout</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/08/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89-View%E7%9A%84%E7%84%A6%E7%82%B9/" rel="prev" title="Android TV开发按键与焦点深入分析（二）--View的焦点">
+      <i class="fa fa-chevron-left"></i> Android TV开发按键与焦点深入分析（二）--View的焦点
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/10/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89-%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8%E7%9A%84%E4%BE%8B%E5%AD%90/" rel="next" title="Android TV开发按键与焦点深入分析（四）--实际使用的例子">
+      Android TV开发按键与焦点深入分析（四）--实际使用的例子 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#ViewRootImpl%E4%B8%AD%E7%9A%84%E6%95%B4%E4%BD%93%E8%BF%87%E7%A8%8B"><span class="nav-number">1.</span> <span class="nav-text">ViewRootImpl中的整体过程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%BB%E6%89%BE%E6%9C%89%E7%84%A6%E7%82%B9%E7%9A%84View"><span class="nav-number">2.</span> <span class="nav-text">寻找有焦点的View</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%AF%BB%E6%89%BE%E4%B8%8B%E4%B8%80%E4%B8%AA%E8%8E%B7%E5%BE%97%E7%84%A6%E7%82%B9%E7%9A%84View"><span class="nav-number">3.</span> <span class="nav-text">寻找下一个获得焦点的View</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#View%E7%9A%84focusSearch%E6%96%B9%E6%B3%95"><span class="nav-number">3.1.</span> <span class="nav-text">View的focusSearch方法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#FocusFinder%E5%8D%95%E4%BE%8B"><span class="nav-number">3.2.</span> <span class="nav-text">FocusFinder单例</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%B7%BB%E5%8A%A0%E6%89%80%E6%9C%89%E5%8F%AF%E4%BB%A5%E8%8E%B7%E5%BE%97%E7%84%A6%E7%82%B9%E7%9A%84View"><span class="nav-number">3.3.</span> <span class="nav-text">添加所有可以获得焦点的View</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%AF%BB%E6%89%BE%E6%9C%80%E4%BC%98View"><span class="nav-number">3.4.</span> <span class="nav-text">寻找最优View</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="前面三篇都是从源码的角度分析按键事件、焦点变换的原理，作为应用层的开发者，分析源码都是带着实际的开发困惑的，要不然谁没事做会read the fucking source code，今天就分享一个Android TV开发中的解决的焦点移动问题。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android TV开发按键与焦点深入分析（四）--实际使用的例子">
+<meta property="og:url" content="http://example.com/2020/10/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89-%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8%E7%9A%84%E4%BE%8B%E5%AD%90/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:description" content="前面三篇都是从源码的角度分析按键事件、焦点变换的原理，作为应用层的开发者，分析源码都是带着实际的开发困惑的，要不然谁没事做会read the fucking source code，今天就分享一个Android TV开发中的解决的焦点移动问题。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/TV_WaterfallLayout/master/demo.gif">
+<meta property="og:image" content="https://github.com/msisuzney/MyBlog/blob/master/images/8_FocusLineFeed.png?raw=true">
+<meta property="article:published_time" content="2020-10-27T10:44:53.000Z">
+<meta property="article:modified_time" content="2021-11-21T06:14:47.315Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/msisuzney/TV_WaterfallLayout/master/demo.gif">
+
+<link rel="canonical" href="http://example.com/2020/10/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89-%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8%E7%9A%84%E4%BE%8B%E5%AD%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android TV开发按键与焦点深入分析（四）--实际使用的例子 | Chenxin's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">2</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">8</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/10/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89-%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8%E7%9A%84%E4%BE%8B%E5%AD%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android TV开发按键与焦点深入分析（四）--实际使用的例子
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-10-27 18:44:53" itemprop="dateCreated datePublished" datetime="2020-10-27T18:44:53+08:00">2020-10-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-11-21 14:14:47" itemprop="dateModified" datetime="2021-11-21T14:14:47+08:00">2021-11-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android-TV/" itemprop="url" rel="index"><span itemprop="name">android TV</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>前面三篇都是从源码的角度分析按键事件、焦点变换的原理，作为应用层的开发者，<br>分析源码都是带着实际的开发困惑的，要不然谁没事做会read the fucking source code，<br>今天就分享一个Android TV开发中的解决的焦点移动问题。</p>
+<span id="more"></span>
+<h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>使用过奇异果TV应用的同学会发现它有焦点换行的功能，就是当一直按遥控器右键时焦点View会换行到下一行的第一个View，如下</p>
+<div align=center>
+<img src="https://raw.githubusercontent.com/msisuzney/TV_WaterfallLayout/master/demo.gif" width = "480" height = "270" alt="演示" />
+</div>  
+
+<p>使用体验很好，重要的是产品同学也觉得很好。</p>
+<p>看到这个效果，我的第一直觉是给每个View设置Id，Id从左到右、从上到下增加,或者给每个View设置自增的Tag，<br>每次都去寻找Id + 1或者Tag +1的View，然后让它获得焦点，这不就OK了。<br>但这还是没有优雅的解决问题，只是把问题抛给了后台、运营，让他们一个一个的设置运营位的编号。<br>那有没有成本很小的解决方法呢？</p>
+<h3 id="getFocusedRect方法"><a href="#getFocusedRect方法" class="headerlink" title="getFocusedRect方法"></a>getFocusedRect方法</h3><p>上一篇的分析中我们知道当按键事件要转换成焦点移动时，需要在众多的View中寻找一个位置<br>最合适的View,然后让它获得焦点。而这个位置的依据是什么？其实就是每个View的getFocusedRect返回的Rect，<br>对于当前有焦点的View，用这个返回的Rect计算它搜寻的起始位置；对于没有焦点的View，用<br>这个Rect来表示自己当前的位置。View的这个方法的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">  * When a view has focus and the user navigates away from it, the next view is searched for</span></span><br><span class="line"><span class="comment">  * starting from the rectangle filled in by this method.</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  * By default, the rectangle is the &#123;<span class="doctag">@link</span> #getDrawingRect(android.graphics.Rect)&#125;)</span></span><br><span class="line"><span class="comment">  * of the view.  However, if your view maintains some idea of internal selection,</span></span><br><span class="line"><span class="comment">  * such as a cursor, or a selected row or column, you should override this method and</span></span><br><span class="line"><span class="comment">  * fill in a more specific rectangle.</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@param</span> r The rectangle to fill in, in this view&#x27;s coordinates.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">getFocusedRect</span><span class="params">(Rect r)</span> </span>&#123;</span><br><span class="line">     getDrawingRect(r);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+<p>实际上默认返回的就是View的绘制区域，但注释也说了可以根据实际的需要自己修改，那我就有一些想法了：<strong>可以根据View在不同的位置返回不同的Rect</strong>。</p>
+<h3 id="原理与实现"><a href="#原理与实现" class="headerlink" title="原理与实现"></a>原理与实现</h3><h4 id="1-原理"><a href="#1-原理" class="headerlink" title="1.原理"></a>1.原理</h4><ol>
+<li>对于有焦点的View，如果它没靠近屏幕的边缘，这个方法返回实际的绘制区域</li>
+<li>对于有焦点的View，如果它靠近屏幕的右边缘，<strong>将这个Rect移动到下一行的左侧屏幕的左外侧</strong>，左边缘的View同理</li>
+<li>对于没有焦点的View，这个方法返回实际的绘制区域  </li>
+</ol>
+<p>这样当在右边缘的View上按右键时，实际上它的搜寻的起始位置在下一行的左外侧，位置最合适的View就是下一行第一个View，这样就可以花很小的代价解决这焦点换行的问题。  </p>
+<p>原理图如下：</p>
+<div align=center>
+<img src="https://github.com/msisuzney/MyBlog/blob/master/images/8_FocusLineFeed.png?raw=true" alt="演示" />
+</div>    
+当View在屏幕右边缘时，将Focus Rect的top设置为自己的botom的位置、Rect的right设置为0，
+实际的搜索起始Rect是黑色虚线的Rect（原理可看上篇的分析），这样最合适的获得焦点的View就是第二行的第一个View，
+达到了换行的目的  
+
+
+<h4 id="2-实现"><a href="#2-实现" class="headerlink" title="2.实现"></a>2.实现</h4><p>重写View的getFocusedRect方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">getFocusedRect</span><span class="params">(Rect r)</span> </span>&#123;</span><br><span class="line">      <span class="comment">//如果有焦点</span></span><br><span class="line">      <span class="keyword">if</span> (isFocused()) &#123;</span><br><span class="line">          <span class="comment">//获得根View的绘制区域</span></span><br><span class="line">          rootView.getDrawingRect(mRootViewRect);</span><br><span class="line">          <span class="comment">//获得自己的绘制区域</span></span><br><span class="line">          getDrawingRect(mTempDrawingRect);</span><br><span class="line">          <span class="comment">//转换自己的绘制区域到根View的坐标系中去，方便计算FocusedRect的位置</span></span><br><span class="line">          rootView.offsetDescendantRectToMyCoords(<span class="keyword">this</span>, mTempDrawingRect);</span><br><span class="line">          <span class="comment">//判断自己是否满足换行的条件，1）按右键 2）自己在屏幕的右边缘</span></span><br><span class="line">          <span class="keyword">if</span> ((mTempDrawingRect.right + <span class="number">20</span>) &gt; mRootViewRect.right &amp;&amp; currentKeyCode == KeyEvent.KEYCODE_DPAD_RIGHT) &#123;</span><br><span class="line">              <span class="comment">//重新获取自己的位置</span></span><br><span class="line">              getDrawingRect(mTempDrawingRect);</span><br><span class="line">              <span class="comment">//转换根View的坐标系中去</span></span><br><span class="line">              rootView.offsetDescendantRectToMyCoords(<span class="keyword">this</span>, mTempDrawingRect);</span><br><span class="line">              <span class="comment">//将这个Rect移动到自己的下方、左侧屏幕的左外侧</span></span><br><span class="line">              mTempDrawingRect.left = <span class="number">0</span> - getMeasuredWidth();</span><br><span class="line">              mTempDrawingRect.right = <span class="number">0</span>;</span><br><span class="line">              mTempDrawingRect.bottom = mTempDrawingRect.bottom + getMeasuredHeight();</span><br><span class="line">              mTempDrawingRect.top = mTempDrawingRect.top + getMeasuredHeight();</span><br><span class="line">              <span class="comment">//将focus rect的坐标系还原到自己的坐标系</span></span><br><span class="line">              rootView.offsetRectIntoDescendantCoords(<span class="keyword">this</span>, mTempDrawingRect);</span><br><span class="line">              r.set(mTempDrawingRect);</span><br><span class="line">          &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mTempDrawingRect.left - <span class="number">20</span> &lt; mRootViewRect.left &amp;&amp; currentKeyCode == KeyEvent.KEYCODE_DPAD_LEFT) &#123;</span><br><span class="line">              <span class="comment">//左键同理</span></span><br><span class="line">            ......</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;<span class="comment">//没有在左右边缘或者没有按对应的左右键</span></span><br><span class="line">              <span class="keyword">super</span>.getFocusedRect(r);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;<span class="comment">//没有焦点</span></span><br><span class="line">          <span class="keyword">super</span>.getFocusedRect(r);</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>大概的原理都写在了代码注释中了，完整的代码实现见<a target="_blank" rel="noopener" href="https://github.com/msisuzney/TV_WaterfallLayout/blob/master/WaterfallLayoutLibrary/src/main/java/com/msisuzney/tv_waterfallayout/FocusLineFeedFrameLayout.java">FocusLineFeedFrameLayout.java</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/09/14/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%89%EF%BC%89-%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6%E8%BD%AC%E6%8D%A2%E6%88%90%E7%84%A6%E7%82%B9%E7%A7%BB%E5%8A%A8%E7%9A%84%E8%BF%87%E7%A8%8B/" rel="prev" title="Android TV开发按键与焦点深入分析（三）--按键事件转换成焦点移动的过程">
+      <i class="fa fa-chevron-left"></i> Android TV开发按键与焦点深入分析（三）--按键事件转换成焦点移动的过程
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%B5%B7%E5%9B%A0"><span class="nav-number">1.</span> <span class="nav-text">起因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#getFocusedRect%E6%96%B9%E6%B3%95"><span class="nav-number">2.</span> <span class="nav-text">getFocusedRect方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8E%9F%E7%90%86%E4%B8%8E%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">原理与实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E5%8E%9F%E7%90%86"><span class="nav-number">3.1.</span> <span class="nav-text">1.原理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.2.</span> <span class="nav-text">2.实现</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

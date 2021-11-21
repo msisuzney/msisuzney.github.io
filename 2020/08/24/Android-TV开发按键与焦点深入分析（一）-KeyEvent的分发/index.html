@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="Android TV中的按键事件Android电视应用开发与Android手机应用开发的区别之一就是Android手机是触屏交互而电视是遥控器按键交互。所以入坑电视开发后，那套关于MotionEvent的分发机制在电视上作用不大，转而替代的是KeyEvent。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android-TV开发按键与焦点深入分析（一）--KeyEvent的分发">
+<meta property="og:url" content="http://example.com/2020/08/24/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89-KeyEvent%E7%9A%84%E5%88%86%E5%8F%91/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:description" content="Android TV中的按键事件Android电视应用开发与Android手机应用开发的区别之一就是Android手机是触屏交互而电视是遥控器按键交互。所以入坑电视开发后，那套关于MotionEvent的分发机制在电视上作用不大，转而替代的是KeyEvent。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/5_dispatchKeyEvent.jpg">
+<meta property="article:published_time" content="2020-08-24T08:41:47.000Z">
+<meta property="article:modified_time" content="2021-11-21T06:14:41.474Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/5_dispatchKeyEvent.jpg">
+
+<link rel="canonical" href="http://example.com/2020/08/24/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89-KeyEvent%E7%9A%84%E5%88%86%E5%8F%91/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android-TV开发按键与焦点深入分析（一）--KeyEvent的分发 | Chenxin's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">2</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">8</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2020/08/24/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E4%B8%80%EF%BC%89-KeyEvent%E7%9A%84%E5%88%86%E5%8F%91/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android-TV开发按键与焦点深入分析（一）--KeyEvent的分发
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-08-24 16:41:47" itemprop="dateCreated datePublished" datetime="2020-08-24T16:41:47+08:00">2020-08-24</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-11-21 14:14:41" itemprop="dateModified" datetime="2021-11-21T14:14:41+08:00">2021-11-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android-TV/" itemprop="url" rel="index"><span itemprop="name">android TV</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="Android-TV中的按键事件"><a href="#Android-TV中的按键事件" class="headerlink" title="Android TV中的按键事件"></a>Android TV中的按键事件</h3><p>Android电视应用开发与Android手机应用开发的区别之一就是Android手机是触屏交互而电视是遥控器按键交互。所以入坑电视开发后，那套关于MotionEvent的分发机制在电视上作用不大，转而替代的是KeyEvent。</p>
+<span id="more"></span>
+<p>KeyEvent与MotionEvent都是InputEvent的子类，所以它们的分发逻辑相似，KeyEvent也定义了ACTION_DOWN和ACTION_UP，一次按键事件会被拆分成单独的<strong>ACTION_DOWN+KEY_CODE</strong>和<strong>ACTION_UP+KEY_CODE</strong>分发出去；每次KeyEvent分发都有Boolean返回，代表这个KeyEvent是否被消费了，这也和MotionEvent一样。</p>
+<h3 id="焦点View获得KeyEvent的过程"><a href="#焦点View获得KeyEvent的过程" class="headerlink" title="焦点View获得KeyEvent的过程"></a>焦点View获得KeyEvent的过程</h3><h4 id="1-焦点View的定义"><a href="#1-焦点View的定义" class="headerlink" title="1.焦点View的定义"></a>1.焦点View的定义</h4><p>讨论KeyEvent的分发就不得不提及Android电视与Android手机开发的另一个区别–焦点View，因为KeyEvent事件最终是要体现在具体的View上的，但View树下很多View到底哪个被宠幸呢？所以Android定义了只有获得焦点的View才可以处理KeyEvent，View用自己的int型的mPrivateFlags中的第2个bit定义自己是不是有焦点的状态，如果View有焦点这个bit是1，没有是0；同时ViewGroup用成员变量mFocused表示自己的子View中哪个有焦点或者包含焦点View。下面是View的代码中定义的焦点的部分：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">View中   </span><br><span class="line"><span class="comment">/* @hide */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">int</span> mPrivateFlags;</span><br><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> PFLAG_FOCUSED                     = <span class="number">0x00000002</span>;</span><br><span class="line"><span class="comment">//flag第2位是否不为0</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">hasFocus</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> (mPrivateFlags &amp; PFLAG_FOCUSED) != <span class="number">0</span>;</span><br><span class="line"> &#125;</span><br><span class="line"><span class="comment">//在获得焦点时设置标志位为1</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">handleFocusGainInternal</span><span class="params">(<span class="meta">@FocusRealDirection</span> <span class="keyword">int</span> direction, Rect previouslyFocusedRect)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> ((mPrivateFlags &amp; PFLAG_FOCUSED) == <span class="number">0</span>) &#123;</span><br><span class="line">            mPrivateFlags |= PFLAG_FOCUSED;<span class="comment">//设置为1</span></span><br><span class="line">        &#125;</span><br><span class="line">    ......</span><br><span class="line"> &#125;</span><br><span class="line">=============================</span><br><span class="line"> ViewGroup中定义的焦点子View</span><br><span class="line">    <span class="comment">// The view contained within this ViewGroup that has or contains focus.</span></span><br><span class="line">    <span class="keyword">private</span> View mFocused;</span><br></pre></td></tr></table></figure>
+<h4 id="2-获得KeyEvent的过程"><a href="#2-获得KeyEvent的过程" class="headerlink" title="2.获得KeyEvent的过程"></a>2.获得KeyEvent的过程</h4><p>当产生了一个KeyEvent，ViewRootImpl就根据mFocused和mPrivateFlags从View树中找出这个焦点View，并把KeyEvent给它处理，调用时序图如下：（具体的代码可以直接搜索对应的方法名字）<br><img src="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/5_dispatchKeyEvent.jpg" alt="dispatchkeyevent .jpg"></p>
+<p>DecorView是FrameLayout的子类，时序图中DecorView的mFocused是这个ViewGroup1,这个ViewGroup1的mFocused就是这个View1，View1的mPrivateFlags中的第2个bit为1。<br>这样一个KeyEvent就被顺利分发给了这个有焦点的View了，ViewGroup的dispatchkeyEvent方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">ViewGroup中</span><br><span class="line">   <span class="comment">// The view contained within this ViewGroup that has or contains focus.</span></span><br><span class="line">   <span class="keyword">private</span> View mFocused;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line">   <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchKeyEvent</span><span class="params">(KeyEvent event)</span> </span>&#123;</span><br><span class="line">	......</span><br><span class="line">        <span class="comment">//自己是有焦点的View，那就自己处理了</span></span><br><span class="line">       <span class="keyword">if</span> ((mPrivateFlags &amp; (PFLAG_FOCUSED | PFLAG_HAS_BOUNDS))</span><br><span class="line">               == (PFLAG_FOCUSED | PFLAG_HAS_BOUNDS)) &#123;</span><br><span class="line">           <span class="keyword">if</span> (<span class="keyword">super</span>.dispatchKeyEvent(event)) &#123;</span><br><span class="line">               <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">           &#125;</span><br><span class="line">           <span class="comment">//mFocused不为空调用这个View的dispatchKeyEvent</span></span><br><span class="line">       &#125; <span class="keyword">else</span> <span class="keyword">if</span> (mFocused != <span class="keyword">null</span> &amp;&amp; (mFocused.mPrivateFlags &amp; PFLAG_HAS_BOUNDS)</span><br><span class="line">               == PFLAG_HAS_BOUNDS) &#123;</span><br><span class="line">           <span class="keyword">if</span> (mFocused.dispatchKeyEvent(event)) &#123;</span><br><span class="line">               <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">           &#125;</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">   &#125;</span><br></pre></td></tr></table></figure>
+<p>View的dispatchkeyEvent方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">dispatchKeyEvent</span><span class="params">(KeyEvent event)</span> </span>&#123;</span><br><span class="line">		。。。。。</span><br><span class="line">        <span class="comment">// Give any attached key listener a first crack at the event.</span></span><br><span class="line">        <span class="comment">//noinspection SimplifiableIfStatement</span></span><br><span class="line">        ListenerInfo li = mListenerInfo;</span><br><span class="line">        <span class="comment">//如果设置了mOnKeyListener就调用mOnKeyListener处理KeyEvent</span></span><br><span class="line">        <span class="keyword">if</span> (li != <span class="keyword">null</span> &amp;&amp; li.mOnKeyListener != <span class="keyword">null</span> &amp;&amp; (mViewFlags &amp; ENABLED_MASK) == ENABLED</span><br><span class="line">                &amp;&amp; li.mOnKeyListener.onKey(<span class="keyword">this</span>, event.getKeyCode(), event)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">		<span class="comment">//没有设置mOnKeyListener，继续分发</span></span><br><span class="line">        <span class="keyword">if</span> (event.dispatch(<span class="keyword">this</span>, mAttachInfo != <span class="keyword">null</span></span><br><span class="line">                ? mAttachInfo.mKeyDispatchState : <span class="keyword">null</span>, <span class="keyword">this</span>)) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">        &#125;</span><br><span class="line">		.......</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">keyEvent中</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">dispatch</span><span class="params">(Callback receiver, DispatcherState state,</span></span></span><br><span class="line"><span class="params"><span class="function">            Object target)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">switch</span> (mAction) &#123;</span><br><span class="line">            <span class="keyword">case</span> ACTION_DOWN: &#123;</span><br><span class="line">              ......</span><br><span class="line">                  <span class="comment">//调用View的onKeyDown</span></span><br><span class="line">                <span class="keyword">boolean</span> res = receiver.onKeyDown(mKeyCode, <span class="keyword">this</span>);</span><br><span class="line">              .......</span><br><span class="line">                <span class="keyword">return</span> res;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">case</span> ACTION_UP:</span><br><span class="line">			.......</span><br><span class="line">                <span class="comment">//调用View的onKeyUp</span></span><br><span class="line">                <span class="keyword">return</span> receiver.onKeyUp(mKeyCode, <span class="keyword">this</span>);</span><br><span class="line">    	   ......</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>可见一个View如果设置了OnKeyListener会先将事件交给OnKeyListener处理，如果OnKeyListener没有消费掉事件继续将事件交给自己的onKeyDown或onKeyUp处理，View的onKeyUp方法中如果这个KeyEvent事件被认为是一次确认按键事件，并且View是clickable的还会触发View的performClick方法。<br>KeyEvent的分发的大概逻辑就是这样的，一次KeyEvent的分发其实就是把事件交给了焦点View处理，可见焦点View是很特别，那么：</p>
+<ul>
+<li>一个View怎样才可以获得焦点？</li>
+<li>一个Android手机应用运行在Android电视上可以响应按键事件吗？  </li>
+</ul>
+<p>请看下篇文章–Android TV开发按键与焦点深入分析（二）–View的焦点模式</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/" rel="prev" title="RecyclerView的ItemDecoration分析与实际使用">
+      <i class="fa fa-chevron-left"></i> RecyclerView的ItemDecoration分析与实际使用
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/08/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BA%8C%EF%BC%89-View%E7%9A%84%E7%84%A6%E7%82%B9/" rel="next" title="Android TV开发按键与焦点深入分析（二）--View的焦点">
+      Android TV开发按键与焦点深入分析（二）--View的焦点 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#Android-TV%E4%B8%AD%E7%9A%84%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6"><span class="nav-number">1.</span> <span class="nav-text">Android TV中的按键事件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%84%A6%E7%82%B9View%E8%8E%B7%E5%BE%97KeyEvent%E7%9A%84%E8%BF%87%E7%A8%8B"><span class="nav-number">2.</span> <span class="nav-text">焦点View获得KeyEvent的过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-%E7%84%A6%E7%82%B9View%E7%9A%84%E5%AE%9A%E4%B9%89"><span class="nav-number">2.1.</span> <span class="nav-text">1.焦点View的定义</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#2-%E8%8E%B7%E5%BE%97KeyEvent%E7%9A%84%E8%BF%87%E7%A8%8B"><span class="nav-number">2.2.</span> <span class="nav-text">2.获得KeyEvent的过程</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">8</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
