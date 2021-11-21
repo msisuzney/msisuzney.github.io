@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="ArraySet的实现原理android.util.ArraySet 是 framework.jar 提供的一个容器类，它的功能和Java的HashSet一样，用来存放对象集合，但它的实现方式却和HashSet不一样。ArraySet主要维护两个数组，一个是Object[]用来保存对象集合，一个是int[]用来保存对象对应的hashCode集合,对应关系如图：tu1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="android.util.ArraySet导致内存泄漏分析">
+<meta property="og:url" content="http://example.com/2021/11/20/android.util.ArraySet%E5%AF%BC%E8%87%B4%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:description" content="ArraySet的实现原理android.util.ArraySet 是 framework.jar 提供的一个容器类，它的功能和Java的HashSet一样，用来存放对象集合，但它的实现方式却和HashSet不一样。ArraySet主要维护两个数组，一个是Object[]用来保存对象集合，一个是int[]用来保存对象对应的hashCode集合,对应关系如图：tu1">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-11-20T11:23:57.000Z">
+<meta property="article:modified_time" content="2021-11-21T08:59:21.525Z">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2021/11/20/android.util.ArraySet%E5%AF%BC%E8%87%B4%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E5%88%86%E6%9E%90/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>android.util.ArraySet导致内存泄漏分析 | Chenxin's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">3</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">9</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/11/20/android.util.ArraySet%E5%AF%BC%E8%87%B4%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E5%88%86%E6%9E%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          android.util.ArraySet导致内存泄漏分析
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-11-20 19:23:57" itemprop="dateCreated datePublished" datetime="2021-11-20T19:23:57+08:00">2021-11-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-11-21 16:59:21" itemprop="dateModified" datetime="2021-11-21T16:59:21+08:00">2021-11-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%86%85%E5%AD%98%E4%BC%98%E5%8C%96/" itemprop="url" rel="index"><span itemprop="name">内存优化</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h3 id="ArraySet的实现原理"><a href="#ArraySet的实现原理" class="headerlink" title="ArraySet的实现原理"></a>ArraySet的实现原理</h3><p>android.util.ArraySet 是 framework.jar 提供的一个容器类，它的功能和Java的HashSet一样，用来存放对象集合，但它的实现方式却和HashSet不一样。<br>ArraySet主要维护两个数组，一个是Object[]用来保存对象集合，一个是int[]用来保存对象对应的hashCode集合,对应关系如图：<br>tu1</p>
+<span id="more"></span>
+<p>对象和它的hashCode是通过数组的下标关联起来的，例如第i个位置:mHashes[i]保存的是mArray[i]这个对象的hashCode。而且mHashes里面的hashCode并不是随意排列的，而是升序排列，这样我们就可以在mHashes数组上使用二分查找hashCode的方式快速定位我们要操作的对象。</p>
+<p>具体的增删改查接口的实现介绍可以参考其他文章，不再详细阐述，这里主要介绍下它的缓存的实现原理，ArraySet主要特点是使用更少的内存保存对象集合、适用于集合里对象数量上的场景，所以它对保存集合的容器Object[]已经保存hashCode的int[]做了一个缓存的设计，如代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ArraySet</span>&lt;<span class="title">E</span>&gt; <span class="keyword">implements</span> <span class="title">Collection</span>&lt;<span class="title">E</span>&gt;, <span class="title">Set</span>&lt;<span class="title">E</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Maximum number of entries to have in array caches.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> CACHE_SIZE = <span class="number">10</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Caches of small array objects to avoid spamming garbage.  The cache</span></span><br><span class="line"><span class="comment">     * Object[] variable is a pointer to a linked list of array objects.</span></span><br><span class="line"><span class="comment">     * The first entry in the array is a pointer to the next array in the</span></span><br><span class="line"><span class="comment">     * list; the second entry is a pointer to the int[] hash code array for it.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">static</span> Object[] sBaseCache;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">int</span> sBaseCacheSize;</span><br><span class="line">    <span class="keyword">static</span> Object[] sTwiceBaseCache;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">int</span> sTwiceBaseCacheSize;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>缓存分为两个，一个是sBaseCache用来缓存长度为4的Object[]和int[]，另一个是sTwiceBaseCache用来缓存长度为8的Object[]和int[],下图以sBaseCache为例子描述了缓存的数据结构：<br>tu2<br>sBaseCache指向最后一个缓存Object[],Object[]的第一个位置指向上一个缓存的Object[],第二个位置缓存自己这个Object[]对应的保存hashCode的int[],依次类推最多10组。sTwiceBaseCache的数据结构和这个是一样的。</p>
+<h6 id="复用"><a href="#复用" class="headerlink" title="复用"></a>复用</h6><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">allocArrays</span><span class="params">(<span class="keyword">final</span> <span class="keyword">int</span> size)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">if</span> (size == (BASE_SIZE * <span class="number">2</span>)) &#123;</span><br><span class="line">         <span class="keyword">synchronized</span> (sTwiceBaseCacheLock) &#123;</span><br><span class="line">             <span class="keyword">if</span> (sTwiceBaseCache != <span class="keyword">null</span>) &#123;</span><br><span class="line">               <span class="comment">//以下代码是取最后一个缓存作为当前实例的mArray，以及它的第二个位置上的int[]作为mHashes</span></span><br><span class="line">                 <span class="keyword">final</span> Object[] array = sTwiceBaseCache;</span><br><span class="line">                 <span class="keyword">try</span> &#123;</span><br><span class="line">                     mArray = array;</span><br><span class="line">                     sTwiceBaseCache = (Object[]) array[<span class="number">0</span>];</span><br><span class="line">                     mHashes = (<span class="keyword">int</span>[]) array[<span class="number">1</span>];</span><br><span class="line">                     <span class="keyword">if</span> (mHashes != <span class="keyword">null</span>) &#123;</span><br><span class="line">                         array[<span class="number">0</span>] = array[<span class="number">1</span>] = <span class="keyword">null</span>;</span><br><span class="line">                         sTwiceBaseCacheSize--;</span><br><span class="line">                         <span class="keyword">if</span> (DEBUG) &#123;<span class="comment">//打印日志</span></span><br><span class="line">                             Log.d(TAG, <span class="string">&quot;Retrieving 2x cache &quot;</span> + mHashes + <span class="string">&quot; now have &quot;</span></span><br><span class="line">                                     + sTwiceBaseCacheSize + <span class="string">&quot; entries&quot;</span>);</span><br><span class="line">                         &#125;</span><br><span class="line">                         <span class="keyword">return</span>;</span><br><span class="line">                     &#125;</span><br><span class="line">                 &#125; <span class="keyword">catch</span> (ClassCastException e) &#123;</span><br><span class="line">                 &#125;</span><br><span class="line">                 <span class="comment">// Whoops!  Someone trampled the array (probably due to not protecting</span></span><br><span class="line">                 <span class="comment">// their access with a lock).  Our cache is corrupt; report and give up.</span></span><br><span class="line">                 Slog.wtf(TAG, <span class="string">&quot;Found corrupt ArraySet cache: [0]=&quot;</span> + array[<span class="number">0</span>]</span><br><span class="line">                         + <span class="string">&quot; [1]=&quot;</span> + array[<span class="number">1</span>]);</span><br><span class="line">                 sTwiceBaseCache = <span class="keyword">null</span>;</span><br><span class="line">                 sTwiceBaseCacheSize = <span class="number">0</span>;</span><br><span class="line">             &#125;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125; <span class="keyword">else</span> <span class="keyword">if</span> (size == BASE_SIZE) &#123;</span><br><span class="line">         <span class="comment">//和上面长度为8的复用一样的逻辑</span></span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     mHashes = <span class="keyword">new</span> <span class="keyword">int</span>[size];</span><br><span class="line">     mArray = <span class="keyword">new</span> Object[size];</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+<h6 id="回收"><a href="#回收" class="headerlink" title="回收"></a>回收</h6><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">freeArrays</span><span class="params">(<span class="keyword">final</span> <span class="keyword">int</span>[] hashes, <span class="keyword">final</span> Object[] array, <span class="keyword">final</span> <span class="keyword">int</span> size)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (hashes.length == (BASE_SIZE * <span class="number">2</span>)) &#123;</span><br><span class="line">            <span class="keyword">synchronized</span> (sTwiceBaseCacheLock) &#123;</span><br><span class="line">                <span class="keyword">if</span> (sTwiceBaseCacheSize &lt; CACHE_SIZE) &#123;</span><br><span class="line">                    array[<span class="number">0</span>] = sTwiceBaseCache;<span class="comment">//指向上一个缓存</span></span><br><span class="line">                    array[<span class="number">1</span>] = hashes;<span class="comment">//保存int[]</span></span><br><span class="line">                    <span class="keyword">for</span> (<span class="keyword">int</span> i = size - <span class="number">1</span>; i &gt;= <span class="number">2</span>; i--) &#123;</span><br><span class="line">                        array[i] = <span class="keyword">null</span>;<span class="comment">//清空引用</span></span><br><span class="line">                    &#125;</span><br><span class="line">                    sTwiceBaseCache = array;<span class="comment">//指向最新的缓存</span></span><br><span class="line">                    sTwiceBaseCacheSize++;</span><br><span class="line">                    <span class="keyword">if</span> (DEBUG) &#123;<span class="comment">//打印日志</span></span><br><span class="line">                        Log.d(TAG, <span class="string">&quot;Storing 2x cache &quot;</span> + array + <span class="string">&quot; now have &quot;</span> + sTwiceBaseCacheSize</span><br><span class="line">                                + <span class="string">&quot; entries&quot;</span>);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (hashes.length == BASE_SIZE) &#123;</span><br><span class="line">            <span class="comment">//和上面长度为8的h回收一样的逻辑</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<h3 id="内存泄漏的现象"><a href="#内存泄漏的现象" class="headerlink" title="内存泄漏的现象"></a>内存泄漏的现象</h3><p>在排查某个应用内存泄漏时发现放在android.util.ArraySet里面的某个类的7个实例对象间接引用到了Activity，导致Activity即使执行了onDestory也没有被回收。简化后的代码逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> android.util.ArraySet;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">Holder</span> </span>&#123;</span><br><span class="line">        <span class="keyword">public</span> Activity activity;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    ArraySet&lt;Holder&gt; holders = <span class="keyword">new</span> ArraySet&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; <span class="number">7</span>; i++) &#123;</span><br><span class="line">            Holder holder = <span class="keyword">new</span> Holder();</span><br><span class="line">            holder.activity = <span class="keyword">this</span>;</span><br><span class="line">            holders.add(holder);</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ArraySet保存的是Holder的实例集合，Holder实例持有Activity引用，ArraySet里面有7个对象，乍一看没什么问题呀，但是却导致Activity内存泄漏了，起初我怀疑是Profiler的问题，于是我使用了LeakCanary,以及轮询调用WeakReference<MainActivity>的get()方法，都显示Activity没有被回收。Profiler显示的引用链如下：<br>tu3<br>是ArraySet实例里面的mArray间接引用到Activity导致没有被回收，但是我们知道mArray只是ArraySet实例的一个成员变量而已，怎么会导致这个结果呢？</p>
+<h3 id="内存泄漏分析"><a href="#内存泄漏分析" class="headerlink" title="内存泄漏分析"></a>内存泄漏分析</h3><p>我们看Profiler会发现mArray就是它检测到的最后一个引用Activity的对象了，所以它会不会是<br>被JNI的代码给引用到了，搜索mArray被引用的地方，发现只是被System.arraycopy引到了，怀疑过是不是这个native方法捣鬼，但是这是一个Java的方法，身经百战了，应该不会出现这个错误了，要不然早就被发现了。<br>之后想到的是mArray可能是复用以前别的ArraySet实例的mArray，是不是mArray里面的对象没清理干净导致泄漏，但这显然错了，只有被引用才导致泄漏，主动引用别的没被释放的实例对mArray的回收没有任何影响啊。<br>先不管这些，我们要确认我们这个ArraySet的mArray是不是复用的，上一节贴的复用代码在成功复用的时候会打印日志，这里我是重新编译了系统把这个类的日志开关DEBUG = true，可以发现的确打印了日志：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Retrieving 2x cache [I@<span class="number">9883301</span> now have <span class="number">0</span> entries</span><br></pre></td></tr></table></figure>
+<p>所以我们可以确定在这个ArraySet需要从长度为4扩容到长度为8时，复用了一个长度为8的缓存。<br>那这个被复用的mArray是谁创建的呢？在什么时候放入缓存的呢？<br>刚刚我们已经打开了日志开关，在回收时会打印日志: Storing 2x cache,但是但是，奇怪的事情发生了，自这个进程启动开始，就没有打印过这个日志，所以可以猜测这个缓存不是不是应用进程自己创建的，而是它的父进程创建的，而应用进程的父进程就是Zygote进程。<br>先来看看这个长度为8的Object[]缓存里面都有些什么的对象，通过反射获取如下（需要系统签名的应用哦~）:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">D/:sTwiceBaseCache:[Ljava.lang.Object;@460a8e9</span><br><span class="line">D/:sTwiceBaseCache: val0 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val1 : [I@<span class="number">9883309</span></span><br><span class="line">D/:sTwiceBaseCache: val2 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val3 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val4 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val5 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val6 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache: val7 : <span class="keyword">null</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val0 : <span class="number">1</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val1 : <span class="number">2</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val2 : <span class="number">4</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val3 : <span class="number">8</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val4 : <span class="number">16</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val5 : <span class="number">32</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val6 : <span class="number">64</span></span><br><span class="line">D/:sTwiceBaseCache[<span class="number">1</span>] is <span class="keyword">int</span>[],val7 : <span class="number">128</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>可以发现sTwiceBaseCache的hashCode是@460a8e9。为了实锤sTwiceBaseCache是Zygote进程放入的，我们取出自开机启动时保存的日志，搜索Zygote进程的的日志信息，由于我们已经打开了ArraySet的日志开关，所以能够看到它的日志，看最后一次调用ArraySet的freeArray方法的日志如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">266</span> <span class="number">266</span> D ArraySet: Storing 2x cache [Ljava.lang.Object;@460a8e9 now have <span class="number">1</span> entries</span><br></pre></td></tr></table></figure>
+<p>266是Zygote的进程pid，放入Object[]的hashCode正是子进程获取到的Object[]的hashCode，所以我们可以猜测：父进程创建的static Object[]，被子进程用来复用保存新的对象，会导致新的对象不能被回收。<br>为了验证这个结论，我们再做一个实验，在ArraySet中加入一个static Object[] sTestCache：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">ArraySet</span>&lt;<span class="title">E</span>&gt; <span class="keyword">implements</span> <span class="title">Collection</span>&lt;<span class="title">E</span>&gt;, <span class="title">Set</span>&lt;<span class="title">E</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> Object[] sBaseCache;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">int</span> sBaseCacheSize;</span><br><span class="line">    <span class="keyword">static</span> Object[] sTwiceBaseCache;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">int</span> sTwiceBaseCacheSize;</span><br><span class="line">    <span class="keyword">static</span> Object[] mTestCache = <span class="keyword">new</span> Object[]&#123;<span class="keyword">new</span> Object()&#125;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>然后在子进程反射复用这个mTestCache:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> <span class="keyword">extends</span> <span class="title">AppCompatActivity</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">onCreate</span><span class="params">(Bundle savedInstanceState)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.onCreate(savedInstanceState);</span><br><span class="line">        setContentView(R.layout.activity_main);</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Field field = ArraySet.class.getDeclaredField(<span class="string">&quot;sTestCache&quot;</span>);</span><br><span class="line">            field.setAccessible(<span class="keyword">true</span>);</span><br><span class="line">            Object[] objects = (Object[]) field.get(<span class="keyword">null</span>);</span><br><span class="line">            field.set(<span class="keyword">null</span>, <span class="keyword">null</span>);</span><br><span class="line">            objects[<span class="number">0</span>] = <span class="keyword">this</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (NoSuchFieldException | IllegalAccessException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>同样会导致内存泄漏：<br>tu4</p>
+<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>使用 androidx.collection.ArraySet,由于 androidx.collection.ArraySet 是应用进程自己加载创建的不会有上面讲的逻辑，自然也就不会导致内存泄漏。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/10/27/Android-TV%E5%BC%80%E5%8F%91%E6%8C%89%E9%94%AE%E4%B8%8E%E7%84%A6%E7%82%B9%E6%B7%B1%E5%85%A5%E5%88%86%E6%9E%90%EF%BC%88%E5%9B%9B%EF%BC%89-%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8%E7%9A%84%E4%BE%8B%E5%AD%90/" rel="prev" title="Android TV开发按键与焦点深入分析（四）--实际使用的例子">
+      <i class="fa fa-chevron-left"></i> Android TV开发按键与焦点深入分析（四）--实际使用的例子
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#ArraySet%E7%9A%84%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86"><span class="nav-number">1.</span> <span class="nav-text">ArraySet的实现原理</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%A4%8D%E7%94%A8"><span class="nav-number">1.0.0.1.</span> <span class="nav-text">复用</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%9B%9E%E6%94%B6"><span class="nav-number">1.0.0.2.</span> <span class="nav-text">回收</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E7%9A%84%E7%8E%B0%E8%B1%A1"><span class="nav-number">2.</span> <span class="nav-text">内存泄漏的现象</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">内存泄漏分析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88"><span class="nav-number">4.</span> <span class="nav-text">解决方案</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
