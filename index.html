@@ -116,12 +116,12 @@
   </li>
         <li class="menu-item menu-item-categories">
 
-    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">4</span></a>
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a>
 
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">10</span></a>
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">11</span></a>
 
   </li>
   </ul>
@@ -147,6 +147,87 @@
 
           <div class="content index posts-expand">
             
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/" class="post-title-link" itemprop="url">Android主线程与epoll</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-12-27 22:01:57" itemprop="dateCreated datePublished" datetime="2021-12-27T22:01:57+08:00">2021-12-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-01-21 23:58:33" itemprop="dateModified" datetime="2022-01-21T23:58:33+08:00">2022-01-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android%E6%BA%90%E7%A0%81/" itemprop="url" rel="index"><span itemprop="name">android源码</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="一则奇怪的现象"><a href="#一则奇怪的现象" class="headerlink" title="一则奇怪的现象"></a>一则奇怪的现象</h3><p>集成Matrix这个性能工具已经很久了，自认为对Matrix检测主线程卡顿的trace-canary模块已经熟悉了，但是最近一个同学的一次“抬杠”让我不知所措。<br>我们知道matrix官方介绍说trace-canary是利用Android主线程执行MessageQueue中的每一个Message时会在执行前打印一个日志，执行完成后再打印一个日志，记录这两个日志的时间差就可以判断我们这个Message是否执行超时，如果是，那么再进一步利用我们在每个方法中的首尾插桩计算方法的耗时，最终查找出到底是应用的哪个方法导致超时的。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
       
   
   
@@ -182,7 +263,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-11-28 02:20:10" itemprop="dateModified" datetime="2021-11-28T02:20:10+08:00">2021-11-28</time>
+                <time title="修改时间：2021-11-28 02:20:34" itemprop="dateModified" datetime="2021-11-28T02:20:34+08:00">2021-11-28</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -879,89 +960,11 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2018/12/30/Crosswalk%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="">
-      <meta itemprop="description" content="时光的烂笔头">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2018/12/30/Crosswalk%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">Crosswalk的使用与源码分析</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2018-12-30 19:24:28" itemprop="dateCreated datePublished" datetime="2018-12-30T19:24:28+08:00">2018-12-30</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-11-21 14:06:17" itemprop="dateModified" datetime="2021-11-21T14:06:17+08:00">2021-11-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h3><p>CrossWalk是一款为HTML应用提供运行时环境的开源项目，从Android开发的角度讲Crosswalk可以用来替代WebView显示网页，在应用重度依赖网页时可以使用Crosswalk解决设备碎片化问题。直接将Crosswalk的库包导入到项目中即可像使用WebView一样使用,这种模式在Crosswalk项目中叫<strong>内嵌模式</strong>,但这样有一个问题由于Crosswalk库包太大集成后的应用体积太大，为此Crosswalk为Android设备提供了另外两种使用方式，<strong>共享模式</strong>和<strong>下载模式</strong>。虽然Crosswalk项目<br>已经在<a target="_blank" rel="noopener" href="https://crosswalk-project.org/blog/crosswalk-final-release.html">17年停止维护</a>，但它这种动态加载使用的方式仍值得我学习。本文将介绍Crosswalk的三种加载方式。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2018/12/30/Crosswalk%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
+  <nav class="pagination">
+    <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/"><i class="fa fa-angle-right" aria-label="下一页"></i></a>
+  </nav>
 
 
 
@@ -1028,14 +1031,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">10</span>
+          <span class="site-state-item-count">11</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-count">5</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
   </nav>
@@ -1067,7 +1070,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2021</span>
+  <span itemprop="copyrightYear">2022</span>
   <span class="with-love">
     <i class="fa fa-heart"></i>
   </span>
