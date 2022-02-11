@@ -116,12 +116,12 @@
   </li>
         <li class="menu-item menu-item-categories">
 
-    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">5</span></a>
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a>
 
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">12</span></a>
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">13</span></a>
 
   </li>
   </ul>
@@ -147,6 +147,87 @@
 
           <div class="content index posts-expand">
             
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/" class="post-title-link" itemprop="url">Android加载硬件位图</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-01-30 15:15:23" itemprop="dateCreated datePublished" datetime="2022-01-30T15:15:23+08:00">2022-01-30</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-02-12 01:05:13" itemprop="dateModified" datetime="2022-02-12T01:05:13+08:00">2022-02-12</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD/" itemprop="url" rel="index"><span itemprop="name">图片加载</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="Bitmap-Config-HARDWARE-介绍"><a href="#Bitmap-Config-HARDWARE-介绍" class="headerlink" title="Bitmap.Config.HARDWARE 介绍"></a>Bitmap.Config.HARDWARE 介绍</h3><p>最近在一些内存很低的机器上做应用内存优化，实际上除了排查内存泄漏外，其他常见的方法对快速降低内存占用不太明显。一个应用端的应用，特别是会加载很多图片的应用，大部分内存都用来加载Bitmap了，一张铺面全屏的图片，粗略算算会占用接近8MB的内存（1920<em>1080</em>4B），我们可以从减少Bitmap的内存占用入手降低native内存占用，常见的方法是将 <strong>inPreferredConfig</strong> 从 <strong>Bitmap.Config.AGRB8888</strong> 改成 <strong>Bitmap.Config.RGB565</strong>，这样能少一半的内存占用。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
       
   
   
@@ -182,7 +263,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-02-10 22:39:41" itemprop="dateModified" datetime="2022-02-10T22:39:41+08:00">2022-02-10</time>
+                <time title="修改时间：2022-02-10 22:40:38" itemprop="dateModified" datetime="2022-02-10T22:40:38+08:00">2022-02-10</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -876,87 +957,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2019/07/14/RecyclerView%E5%9C%A8%E4%B8%8D%E5%90%8C%E6%93%8D%E4%BD%9C%E4%B8%8B%E7%9A%84ViewHolder%E5%9B%9E%E6%94%B6%E5%88%86%E6%9E%90/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="">
-      <meta itemprop="description" content="时光的烂笔头">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2019/07/14/RecyclerView%E5%9C%A8%E4%B8%8D%E5%90%8C%E6%93%8D%E4%BD%9C%E4%B8%8B%E7%9A%84ViewHolder%E5%9B%9E%E6%94%B6%E5%88%86%E6%9E%90/" class="post-title-link" itemprop="url">RecyclerView在不同操作下的ViewHolder回收分析</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2019-07-14 16:37:32" itemprop="dateCreated datePublished" datetime="2019-07-14T16:37:32+08:00">2019-07-14</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-11-21 14:05:48" itemprop="dateModified" datetime="2021-11-21T14:05:48+08:00">2021-11-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>RV在几乎在所有的有界面的Android应用都会使用到，可以说日常开发中RV是老熟人天天见，可是仔细想想熟悉它的什么呢？熟悉的是怎么去使用，对于它的内部原理太过陌生。曾经多次点看它的源码，但都迷失在成千上万的代码与注释中。幸好网上还有很多关于RV优秀的文章，让我能抓住RV的一些重点，其中一个重点就是它对viewHolder的回收与复用机制，关于这一块网上很多文章已经分析过了，Recycler、四级缓存等等，但我还是有一个疑问，在什么操作下会将什么viewHolder放到哪一个缓存？由于RV源码太复杂了😭，下面就带着这个疑问片面地分析下它的缓存设计。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2019/07/14/RecyclerView%E5%9C%A8%E4%B8%8D%E5%90%8C%E6%93%8D%E4%BD%9C%E4%B8%8B%E7%9A%84ViewHolder%E5%9B%9E%E6%94%B6%E5%88%86%E6%9E%90/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1028,14 +1028,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">12</span>
+          <span class="site-state-item-count">13</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-count">6</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
   </nav>
