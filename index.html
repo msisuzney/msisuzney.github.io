@@ -121,7 +121,7 @@
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">13</span></a>
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">14</span></a>
 
   </li>
   </ul>
@@ -147,6 +147,87 @@
 
           <div class="content index posts-expand">
             
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/" class="post-title-link" itemprop="url">Bitmap的回收</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-02-10 23:05:31" itemprop="dateCreated datePublished" datetime="2022-02-10T23:05:31+08:00">2022-02-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-02-16 00:38:18" itemprop="dateModified" datetime="2022-02-16T00:38:18+08:00">2022-02-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD/" itemprop="url" rel="index"><span itemprop="name">图片加载</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>平时经常使用Bitmap，但对Bitmap的生命周期没有仔细思考过，最近查看源码时突然想到一个问题：Bitmap是怎么回收的？Java堆上的<strong>android.graphics.Bitmap</strong>只是描述了位图的轮廓，真正的像素信息保存在了native 堆上，那么这块内存是怎么回收的呢？我们没有特意去关心这部分内存，只是将<strong>android.graphics.Bitmap</strong>置为空就结束了，那一定是系统帮我们完成了回收。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
       
   
   
@@ -246,7 +327,7 @@
       <header class="post-header">
         <h2 class="post-title" itemprop="name headline">
           
-            <a href="/2022/01/27/android%E5%BA%94%E7%94%A8%E4%B8%BB%E7%BA%BF%E7%A8%8B%E6%8E%A5%E6%94%B6input%20event/" class="post-title-link" itemprop="url">Android应用主线程接收Input Event</a>
+            <a href="/2022/01/27/android%E5%BA%94%E7%94%A8%E4%B8%BB%E7%BA%BF%E7%A8%8B%E6%8E%A5%E6%94%B6input%20event/" class="post-title-link" itemprop="url">Android应用主线程接收input event</a>
         </h2>
 
         <div class="post-meta">
@@ -263,7 +344,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-02-10 22:40:38" itemprop="dateModified" datetime="2022-02-10T22:40:38+08:00">2022-02-10</time>
+                <time title="修改时间：2022-02-15 22:32:44" itemprop="dateModified" datetime="2022-02-15T22:32:44+08:00">2022-02-15</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -286,7 +367,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>在<a target="_blank" rel="noopener" href="https://msisuzney.github.io/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/">Android主线程与epoll</a> 中介绍到Android应用的主线程通过监听InputManager注册到 <strong>epoll</strong> 的文件描述符从而去监听、接收输入事件的，但是我还是有很多疑惑，InputManager是什么时候注册？怎样解注册？</p>
+          <p>在<a target="_blank" rel="noopener" href="https://msisuzney.github.io/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/">Android主线程与epoll</a> 中介绍到Android应用的主线程通过监听InputManager注册到 <em>epoll</em> 的文件描述符从而去监听、接收输入事件的，但是我还是有很多疑惑，InputManager是什么时候注册？怎样解注册？</p>
           <!--noindex-->
             <div class="post-button">
               <a class="btn" href="/2022/01/27/android%E5%BA%94%E7%94%A8%E4%B8%BB%E7%BA%BF%E7%A8%8B%E6%8E%A5%E6%94%B6input%20event/#more" rel="contents">
@@ -876,87 +957,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="">
-      <meta itemprop="description" content="时光的烂笔头">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/" class="post-title-link" itemprop="url">RecyclerView的ItemDecoration分析与实际使用</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2019-07-28 14:40:25" itemprop="dateCreated datePublished" datetime="2019-07-28T14:40:25+08:00">2019-07-28</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-11-21 14:06:09" itemprop="dateModified" datetime="2021-11-21T14:06:09+08:00">2021-11-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>在项目开发中遇到了一些实际的需求，为了满足这些需求不得不去了解新的知识点或者加深对已知知识点的认识，现在就总结一下在实际开发中对RecyclerView的ItemDecoration的使用</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1028,7 +1028,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">13</span>
+          <span class="site-state-item-count">14</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>

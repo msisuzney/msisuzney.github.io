@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="平时经常使用Bitmap，但对Bitmap的生命周期没有仔细思考过，最近查看源码时突然想到一个问题：Bitmap是怎么回收的？Java堆上的android.graphics.Bitmap只是描述了位图的轮廓，真正的像素信息保存在了native 堆上，那么这块内存是怎么回收的呢？我们没有特意去关心这部分内存，只是将android.graphics.Bitmap置为空就结束了，那一定是系统帮我们完成了">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bitmap的回收">
+<meta property="og:url" content="http://example.com/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:description" content="平时经常使用Bitmap，但对Bitmap的生命周期没有仔细思考过，最近查看源码时突然想到一个问题：Bitmap是怎么回收的？Java堆上的android.graphics.Bitmap只是描述了位图的轮廓，真正的像素信息保存在了native 堆上，那么这块内存是怎么回收的呢？我们没有特意去关心这部分内存，只是将android.graphics.Bitmap置为空就结束了，那一定是系统帮我们完成了">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-02-10T15:05:31.000Z">
+<meta property="article:modified_time" content="2022-02-15T16:38:18.770Z">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Bitmap的回收 | Chenxin's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">14</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/02/10/Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Bitmap的回收
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-02-10 23:05:31" itemprop="dateCreated datePublished" datetime="2022-02-10T23:05:31+08:00">2022-02-10</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-02-16 00:38:18" itemprop="dateModified" datetime="2022-02-16T00:38:18+08:00">2022-02-16</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD/" itemprop="url" rel="index"><span itemprop="name">图片加载</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>平时经常使用Bitmap，但对Bitmap的生命周期没有仔细思考过，最近查看源码时突然想到一个问题：Bitmap是怎么回收的？Java堆上的<strong>android.graphics.Bitmap</strong>只是描述了位图的轮廓，真正的像素信息保存在了native 堆上，那么这块内存是怎么回收的呢？我们没有特意去关心这部分内存，只是将<strong>android.graphics.Bitmap</strong>置为空就结束了，那一定是系统帮我们完成了回收。</p>
+<span id="more"></span>
+
+<h3 id="Bitmap的创建"><a href="#Bitmap的创建" class="headerlink" title="Bitmap的创建"></a>Bitmap的创建</h3><p>Android提供BitmapFactory创建Bitmap，不管使用哪个静态方法，最后都会调到native代码去真正解码图片并将得到的信息转换成位图信息，调用栈如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">-&gt; frameworks/base/graphics/java/android/graphics/BitmapFactory.<span class="function">java <span class="title">decodeStream</span><span class="params">()</span></span></span><br><span class="line"><span class="function">  -&gt; frameworks/base/graphics/java/android/graphics/BitmapFactory.java <span class="title">nativeDecodeAsset</span><span class="params">()</span></span></span><br><span class="line"><span class="function">    -&gt; frameworks/base/libs/hwui/jni/BitmapFactory.cpp <span class="title">nativeDecodeAsset</span><span class="params">()</span></span></span><br><span class="line"><span class="function">      -&gt; frameworks/base/libs/hwui/jni/BitmapFactory.cpp <span class="title">doDecode</span><span class="params">()</span></span></span><br></pre></td></tr></table></figure>
+<p>在 doDecode方法中解码图片得到位图：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> jobject <span class="title">doDecode</span><span class="params">(JNIEnv* env, std::unique_ptr&lt;SkStreamRewindable&gt; stream,</span></span></span><br><span class="line"><span class="params"><span class="function">                        jobject padding, jobject options, jlong inBitmapHandle,</span></span></span><br><span class="line"><span class="params"><span class="function">                        jlong colorSpaceHandle)</span> </span>&#123;</span><br><span class="line">              <span class="comment">/**</span></span><br><span class="line"><span class="comment">                省略的代码主要工作：</span></span><br><span class="line"><span class="comment">                1、如果只是加载宽高返回</span></span><br><span class="line"><span class="comment">                2、如果有复用的Bitmap则复用</span></span><br><span class="line"><span class="comment">                3、计算缩放比例</span></span><br><span class="line"><span class="comment">              **/</span></span><br><span class="line"></span><br><span class="line">              <span class="comment">//分配native内存</span></span><br><span class="line">              SkBitmap decodingBitmap;</span><br><span class="line">             <span class="keyword">if</span> (!decodingBitmap.setInfo(bitmapInfo) ||</span><br><span class="line">                     !decodingBitmap.tryAllocPixels(decodeAllocator)) &#123;</span><br><span class="line">                 <span class="comment">// SkAndroidCodec should recommend a valid SkImageInfo, so setInfo()</span></span><br><span class="line">                 <span class="comment">// should only only fail if the calculated value for rowBytes is too</span></span><br><span class="line">                 <span class="comment">// large.</span></span><br><span class="line">                 <span class="comment">// tryAllocPixels() can fail due to OOM on the Java heap, OOM on the</span></span><br><span class="line">                 <span class="comment">// native heap, or the recycled javaBitmap being too small to reuse.</span></span><br><span class="line">                 <span class="keyword">return</span> nullptr;</span><br><span class="line">             &#125;</span><br><span class="line"></span><br><span class="line">           <span class="comment">// Use SkAndroidCodec to perform the decode.</span></span><br><span class="line">           SkAndroidCodec::AndroidOptions codecOptions;</span><br><span class="line">           codecOptions.fZeroInitialized = decodeAllocator == &amp;defaultAllocator ?</span><br><span class="line">                   SkCodec::kYes_ZeroInitialized : SkCodec::kNo_ZeroInitialized;</span><br><span class="line">           codecOptions.fSampleSize = sampleSize;</span><br><span class="line"></span><br><span class="line">           <span class="comment">//调用解码器解码图片，转换的位图信息保存到decodingBitmap.getPixels()得到的地址中</span></span><br><span class="line">           SkCodec::Result result = codec-&gt;getAndroidPixels(decodeInfo, decodingBitmap.getPixels(),</span><br><span class="line">                   decodingBitmap.rowBytes(), &amp;codecOptions);</span><br><span class="line"></span><br><span class="line">           <span class="comment">/**</span></span><br><span class="line"><span class="comment">             省略的代码主要工作：</span></span><br><span class="line"><span class="comment">             1、如果有缩放，创建缩放的位图</span></span><br><span class="line"><span class="comment">             2、如果有复用的Bitmap，直接使用它创建java Bitmap</span></span><br><span class="line"><span class="comment">             3、如果是硬件位图，走对应的逻辑</span></span><br><span class="line"><span class="comment">            **/</span></span><br><span class="line"></span><br><span class="line">          <span class="comment">// now create the java bitmap</span></span><br><span class="line">          <span class="keyword">return</span> bitmap::createBitmap(env, defaultAllocator.getStorageObjAndReset(),</span><br><span class="line">                bitmapCreateFlags, ninePatchChunk, ninePatchInsets, -<span class="number">1</span>);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong>doDecode</strong>代码很长，这里只列出了本文最关心的代码，在代码的最后创建了java Bitmap，我们再看看Java Bitmap对象的创建过程：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment">// called from JNI and Bitmap_Delegate.</span></span><br><span class="line">Bitmap(<span class="keyword">long</span> nativeBitmap, <span class="keyword">int</span> width, <span class="keyword">int</span> height, <span class="keyword">int</span> density,</span><br><span class="line">        <span class="keyword">boolean</span> requestPremultiplied, <span class="keyword">byte</span>[] ninePatchChunk,</span><br><span class="line">        NinePatch.InsetStruct ninePatchInsets, <span class="keyword">boolean</span> fromMalloc) &#123;</span><br><span class="line">    <span class="keyword">if</span> (nativeBitmap == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(<span class="string">&quot;internal error: native bitmap is 0&quot;</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    mWidth = width;</span><br><span class="line">    mHeight = height;</span><br><span class="line">    mRequestPremultiplied = requestPremultiplied;</span><br><span class="line"></span><br><span class="line">    mNinePatchChunk = ninePatchChunk;</span><br><span class="line">    mNinePatchInsets = ninePatchInsets;</span><br><span class="line">    <span class="keyword">if</span> (density &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">        mDensity = density;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    mNativePtr = nativeBitmap;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">int</span> allocationByteCount = getAllocationByteCount();</span><br><span class="line">    NativeAllocationRegistry registry;</span><br><span class="line">    <span class="keyword">if</span> (fromMalloc) &#123;<span class="comment">//native内存分配</span></span><br><span class="line">        registry = NativeAllocationRegistry.createMalloced(</span><br><span class="line">                Bitmap.class.getClassLoader(), nativeGetNativeFinalizer(), allocationByteCount);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;<span class="comment">//mmap内存分配</span></span><br><span class="line">        registry = NativeAllocationRegistry.createNonmalloced(</span><br><span class="line">                Bitmap.class.getClassLoader(), nativeGetNativeFinalizer(), allocationByteCount);</span><br><span class="line">    &#125;</span><br><span class="line">    registry.registerNativeAllocation(<span class="keyword">this</span>, nativeBitmap);</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>前部分代码很简单，主要就是保存了我们在native层创建的bitmap对象的地址，比较新奇的是新建的<strong>NativeAllocationRegistry</strong>这个对象，它是做什么的呢？其实就是通过它实现静悄悄地回收native Bitmap。</p>
+<p>关于<strong>NativeAllocationRegistry</strong>介绍看这篇文章：<a target="_blank" rel="noopener" href="https://juejin.cn/post/6894153239907237902#heading-6">ART虚拟机 | 如何让GC同步回收native内存</a>，总结下来在Bitmap构造器中<strong>NativeAllocationRegistry</strong>就干了三件事：</p>
+<ol>
+<li>将本次分配的native内存也统计进Java虚拟机，让虚拟机尽可能多的统计分配给Java相关的内存</li>
+<li>综合这次分配的内存大小、上次native总内存的大小等因素判断下是否立即执行一次java GC</li>
+<li>为这个java Bitmap创建一个<strong>幽灵引用（PhantomReference）</strong>，方便监听它被回收后立马回收native Bitmap内存</li>
+</ol>
+<h3 id="Bitmap的回收"><a href="#Bitmap的回收" class="headerlink" title="Bitmap的回收"></a>Bitmap的回收</h3><h4 id="Android-N-API-Level-25之后"><a href="#Android-N-API-Level-25之后" class="headerlink" title="Android N API Level 25之后"></a>Android N API Level 25之后</h4><p>上面讲到的<strong>NativeAllocationRegistry</strong>就是在Android 7加入到Bitmap的，在第三点提到创建了一个幽灵引用，实际上是<strong>sun.misc.Cleaner</strong>实例，它是<strong>PhantomReference</strong>的子类，创建的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">libcore/luni/src/main/java/libcore/util/NativeAllocationRegistry.java</span><br><span class="line"></span><br><span class="line"><span class="comment">//Bitmap调用的静态方法</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> NativeAllocationRegistry <span class="title">createMalloced</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="meta">@NonNull</span> ClassLoader classLoader, <span class="keyword">long</span> freeFunction, <span class="keyword">long</span> size)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> NativeAllocationRegistry(classLoader, freeFunction, size, <span class="keyword">true</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//先调用到构造器，保存native层释放内存的方法的地址</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="title">NativeAllocationRegistry</span><span class="params">(ClassLoader classLoader, <span class="keyword">long</span> freeFunction, <span class="keyword">long</span> size,</span></span></span><br><span class="line"><span class="params"><span class="function">        <span class="keyword">boolean</span> mallocAllocation)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (size &lt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;Invalid native allocation size: &quot;</span> + size);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">this</span>.classLoader = classLoader;</span><br><span class="line">    <span class="comment">//保存native层释放内存的方法的地址</span></span><br><span class="line">    <span class="keyword">this</span>.freeFunction = freeFunction;</span><br><span class="line">    <span class="keyword">this</span>.size = mallocAllocation ? (size | IS_MALLOCED) : (size &amp; ~IS_MALLOCED);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">//后调用到这个方法</span></span><br><span class="line"> <span class="keyword">public</span> <span class="meta">@NonNull</span> <span class="function">Runnable <span class="title">registerNativeAllocation</span><span class="params">(<span class="meta">@NonNull</span> Object referent, <span class="keyword">long</span> nativePtr)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">if</span> (referent == <span class="keyword">null</span>) &#123;</span><br><span class="line">         <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;referent is null&quot;</span>);</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="keyword">if</span> (nativePtr == <span class="number">0</span>) &#123;</span><br><span class="line">         <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">&quot;nativePtr is null&quot;</span>);</span><br><span class="line">     &#125;</span><br><span class="line"></span><br><span class="line">     CleanerThunk thunk;</span><br><span class="line">     CleanerRunner result;</span><br><span class="line">     <span class="keyword">try</span> &#123;</span><br><span class="line">         thunk = <span class="keyword">new</span> CleanerThunk();<span class="comment">//被回收时执行clean的Runnable</span></span><br><span class="line">         Cleaner cleaner = Cleaner.create(referent, thunk);</span><br><span class="line">         result = <span class="keyword">new</span> CleanerRunner(cleaner);<span class="comment">//返回给调用方的Runnable，用于调用方主动执行clean</span></span><br><span class="line">         registerNativeAllocation(<span class="keyword">this</span>.size);</span><br><span class="line">     &#125; <span class="keyword">catch</span> (VirtualMachineError vme <span class="comment">/* probably OutOfMemoryError */</span>) &#123;</span><br><span class="line">         applyFreeFunction(freeFunction, nativePtr);</span><br><span class="line">         <span class="keyword">throw</span> vme;</span><br><span class="line">     &#125; <span class="comment">// Other exceptions are impossible.</span></span><br><span class="line">     <span class="comment">// Enable the cleaner only after we can no longer throw anything, including OOME.</span></span><br><span class="line">     <span class="comment">//赋值native对应内存的地址</span></span><br><span class="line">     thunk.setNativePtr(nativePtr);</span><br><span class="line">     <span class="comment">// Ensure that cleaner doesn&#x27;t get invoked before we enable it.</span></span><br><span class="line">     Reference.reachabilityFence(referent);</span><br><span class="line">     <span class="keyword">return</span> result;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><strong>registerNativeAllocation</strong>是关键，它创建了Cleaner对象，关于Cleaner的进一步介绍见这篇文章：<a target="_blank" rel="noopener" href="https://juejin.cn/post/6891918738846105614">ART虚拟机 | Finalize的替代者Cleaner</a>，总结这篇文章，<strong>sun.misc.Cleaner</strong>其实是行为比较特殊的<strong>PhantomReference</strong>，特殊在于:</p>
+<ol>
+<li>在它关联的Java对象被释放时，不同于<strong><strong>PhantomReference</strong></strong>要入队到队列，它并没有真正入队到某个队列</li>
+<li>执行释放内存的方法，在<strong>remove()方法</strong>中执行了调用了释放native内存的方法</li>
+</ol>
+<h4 id="Android-N-API-Level-25之前"><a href="#Android-N-API-Level-25之前" class="headerlink" title="Android N API Level 25之前"></a>Android N API Level 25之前</h4><p>Android 7之前，Bitmap的回收时依赖于Object的<strong>finalize方法</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//android 6 frameworks/base/graphics/java/android/graphics/Bitmap.java</span></span><br><span class="line"><span class="comment">//构造器</span></span><br><span class="line">Bitmap(<span class="keyword">long</span> nativeBitmap, <span class="keyword">byte</span>[] buffer, <span class="keyword">int</span> width, <span class="keyword">int</span> height, <span class="keyword">int</span> density,</span><br><span class="line">        <span class="keyword">boolean</span> isMutable, <span class="keyword">boolean</span> requestPremultiplied,</span><br><span class="line">        <span class="keyword">byte</span>[] ninePatchChunk, NinePatch.InsetStruct ninePatchInsets) &#123;</span><br><span class="line">    ......</span><br><span class="line">    mNativePtr = nativeBitmap;</span><br><span class="line">    mFinalizer = <span class="keyword">new</span> BitmapFinalizer(nativeBitmap);</span><br><span class="line">    <span class="keyword">int</span> nativeAllocationByteCount = (buffer == <span class="keyword">null</span> ? getByteCount() : <span class="number">0</span>);</span><br><span class="line">    mFinalizer.setNativeAllocationByteCount(nativeAllocationByteCount);</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>实际工作的<strong>BitmapFinalizer</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="class"><span class="keyword">class</span> <span class="title">BitmapFinalizer</span> </span>&#123;</span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">long</span> mNativeBitmap;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// Native memory allocated for the duration of the Bitmap,</span></span><br><span class="line">      <span class="comment">// if pixel data allocated into native memory, instead of java byte[]</span></span><br><span class="line">      <span class="keyword">private</span> <span class="keyword">int</span> mNativeAllocationByteCount;</span><br><span class="line"></span><br><span class="line">      BitmapFinalizer(<span class="keyword">long</span> nativeBitmap) &#123;</span><br><span class="line">          mNativeBitmap = nativeBitmap;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setNativeAllocationByteCount</span><span class="params">(<span class="keyword">int</span> nativeByteCount)</span> </span>&#123;</span><br><span class="line">          <span class="keyword">if</span> (mNativeAllocationByteCount != <span class="number">0</span>) &#123;</span><br><span class="line">              VMRuntime.getRuntime().registerNativeFree(mNativeAllocationByteCount);</span><br><span class="line">          &#125;</span><br><span class="line">          mNativeAllocationByteCount = nativeByteCount;</span><br><span class="line">          <span class="keyword">if</span> (mNativeAllocationByteCount != <span class="number">0</span>) &#123;</span><br><span class="line">              VMRuntime.getRuntime().registerNativeAllocation(mNativeAllocationByteCount);</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> </span>&#123;</span><br><span class="line">          <span class="keyword">try</span> &#123;</span><br><span class="line">              <span class="keyword">super</span>.finalize();</span><br><span class="line">          &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">              <span class="comment">// Ignore</span></span><br><span class="line">          &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">              setNativeAllocationByteCount(<span class="number">0</span>);</span><br><span class="line">              nativeDestructor(mNativeBitmap);</span><br><span class="line">              mNativeBitmap = <span class="number">0</span>;</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>对比Android 7前后的两种实现，最最重要的差别在于使用<strong>NativeAllocationRegistry</strong>时会判断一下是否需要触发一次java GC，<strong>保证GC在最需要内存的时间点前后能执行</strong>，而<strong>BitmapFinalizer</strong>做不到。其次的差别是<strong>回收的方式</strong>，<strong>NativeAllocationRegistry</strong>使用的是幽灵引用实现的，而<strong>BitmapFinalizer</strong>依赖ObjectObject的<strong>finalize方法</strong>😴。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/" rel="prev" title="Android加载硬件位图">
+      <i class="fa fa-chevron-left"></i> Android加载硬件位图
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#Bitmap%E7%9A%84%E5%88%9B%E5%BB%BA"><span class="nav-number">1.</span> <span class="nav-text">Bitmap的创建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Bitmap%E7%9A%84%E5%9B%9E%E6%94%B6"><span class="nav-number">2.</span> <span class="nav-text">Bitmap的回收</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Android-N-API-Level-25%E4%B9%8B%E5%90%8E"><span class="nav-number">2.1.</span> <span class="nav-text">Android N API Level 25之后</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Android-N-API-Level-25%E4%B9%8B%E5%89%8D"><span class="nav-number">2.2.</span> <span class="nav-text">Android N API Level 25之前</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">14</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder"></span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
