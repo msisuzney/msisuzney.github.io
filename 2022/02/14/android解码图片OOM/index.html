@@ -30,7 +30,7 @@
 <meta property="og:image" content="https://msisuzney.github.io/images/15_tu_1.png">
 <meta property="og:image" content="https://msisuzney.github.io/images/15_tu_2.png">
 <meta property="article:published_time" content="2022-02-14T14:17:41.000Z">
-<meta property="article:modified_time" content="2022-02-21T17:13:07.246Z">
+<meta property="article:modified_time" content="2022-02-21T17:14:06.571Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://msisuzney.github.io/images/15_tu_1.png">
 
@@ -187,7 +187,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-02-22 01:13:07" itemprop="dateModified" datetime="2022-02-22T01:13:07+08:00">2022-02-22</time>
+                <time title="修改时间：2022-02-22 01:14:06" itemprop="dateModified" datetime="2022-02-22T01:14:06+08:00">2022-02-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -210,7 +210,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>Android开发或多或少都遇到过<strong>OutOfMemoryError</strong>，而平常开发中导致该错误的罪魁祸首很可能就是加载大图，为什么呢？因为我们解码出来需要显示的图片是实打实的位图（Bitmap)，一个像素需要4bytes的内存，一张普通的壁纸1920x1080px，就需要接近<strong>8MB</strong>（1920x1080x4B）的内存，这还是最理想的铺满全屏的Bitmap，实际上现在我们手机拍摄的照片都远超过了这个尺寸，需要的内存几乎翻了好几倍，更别提一些照相馆使用专业作图软件编辑生成的艺术照，动辄上万像素的宽高，一不小心光加载一张图就花了1、2GB的内存。有人会说搁着骗人呢，BitmapFactory不是提供了只读图片宽高的方法吗？不是提供了<strong>inSampleSize</strong>这个用于采样的配置吗？读完宽高，算算<strong>inSampleSize</strong>，再真正加载Bitmap不是可以省很多Bitmap内存吗？如果这些对所有情况都有用，我也不会写这篇文章了😔。</p>
+        <p>Android开发或多或少都遇到过<strong>OutOfMemoryError</strong>，而平常开发中导致该错误的罪魁祸首很可能就是加载大图，为什么呢？因为我们解码出来需要显示的图片是实打实的位图（Bitmap)，一个像素需要4bytes的内存，一张普通的壁纸1920x1080px，就需要接近<strong>8MB</strong>（1920x1080x4B）的内存，这还是最理想的铺满全屏的Bitmap，实际上现在我们手机拍摄的照片都远超过了这个尺寸，需要的内存几乎翻了好几倍，更别提一些照相馆使用专业作图软件编辑生成的艺术照，动辄上万像素的宽高，一不小心光加载一张图就花了1、2GB的内存。有人会说搁着骗人呢<span id="more"></span>，BitmapFactory不是提供了只读图片宽高的方法吗？不是提供了<strong>inSampleSize</strong>这个用于采样的配置吗？读完宽高，算算<strong>inSampleSize</strong>，再真正加载Bitmap不是可以省很多Bitmap内存吗？如果这些对所有情况都有用，我也不会写这篇文章了😔。</p>
 <h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>实际情况是，对某些图片<strong>inSampleSize</strong>在解码阶段失效了，也就是虽然我们得到的Bitmap是根据这个参数缩放后的Bitmap，但是使用解码器去解码图片这个过程还是按照原图的尺寸去加载的，会导致解码阶段内存暴涨，还轮不到java层抛OOM就已经被系统杀死进程了。下面以加载一张艺术照为例，图片的尺寸为19500x6000px，加载时设置<strong>inSampleSize=8</strong>，那么理论上占用的内存不会超过<strong>128MB</strong>,但如下图native内存暴涨到了1.2GB。<br><img src="https://msisuzney.github.io/images/15_tu_1.png" alt="tu1.png"><br>显然这时<strong>inSampleSize=8</strong>对解码图片失效了，这是在内存比较大的手机上加载的，所以没有崩溃，但如果我们在一些内存比较低的设备，比如大屏终端，用户觉得这么大的屏幕，不用来轮播自己拍的美美照片简直浪费，可是这种设备内存注定低，一加载大图它就闪退了，md把它砸了！</p>
 <h3 id="原因"><a href="#原因" class="headerlink" title="原因"></a>原因</h3><p>根据我的总结，出现这个现象的是部分JPEG文件格式的大图，这些大图的特点是他们都是<strong>递增式JPEG</strong>，要理解和普通JPEG的区别还得从<strong>JPEG</strong>文件说起。</p>
 <h4 id="JPEG文件格式"><a href="#JPEG文件格式" class="headerlink" title="JPEG文件格式"></a>JPEG文件格式</h4><p><strong>JPEG(Joint Picture Expert Group)</strong> 本身只是描述如何将一个视频/图片转换为字节的数据流（如DCT变换、量化、哈夫曼树等等），但并没有说明这些字节如何在任何特定的存储媒体上被封存起来。<strong>JPEG/JFIF（JPEG File Interchange Format</strong>和<strong>JPEG/Exif（Exchange image file Format)</strong> 才是描述怎么保存<strong>JPEG</strong>图片的标准:</p>

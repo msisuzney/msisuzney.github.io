@@ -182,7 +182,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2022-02-22 01:13:07" itemprop="dateModified" datetime="2022-02-22T01:13:07+08:00">2022-02-22</time>
+                <time title="修改时间：2022-02-22 01:14:06" itemprop="dateModified" datetime="2022-02-22T01:14:06+08:00">2022-02-22</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -205,30 +205,15 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>Android开发或多或少都遇到过<strong>OutOfMemoryError</strong>，而平常开发中导致该错误的罪魁祸首很可能就是加载大图，为什么呢？因为我们解码出来需要显示的图片是实打实的位图（Bitmap)，一个像素需要4bytes的内存，一张普通的壁纸1920x1080px，就需要接近<strong>8MB</strong>（1920x1080x4B）的内存，这还是最理想的铺满全屏的Bitmap，实际上现在我们手机拍摄的照片都远超过了这个尺寸，需要的内存几乎翻了好几倍，更别提一些照相馆使用专业作图软件编辑生成的艺术照，动辄上万像素的宽高，一不小心光加载一张图就花了1、2GB的内存。有人会说搁着骗人呢，BitmapFactory不是提供了只读图片宽高的方法吗？不是提供了<strong>inSampleSize</strong>这个用于采样的配置吗？读完宽高，算算<strong>inSampleSize</strong>，再真正加载Bitmap不是可以省很多Bitmap内存吗？如果这些对所有情况都有用，我也不会写这篇文章了😔。</p>
-<h3 id="现象"><a href="#现象" class="headerlink" title="现象"></a>现象</h3><p>实际情况是，对某些图片<strong>inSampleSize</strong>在解码阶段失效了，也就是虽然我们得到的Bitmap是根据这个参数缩放后的Bitmap，但是使用解码器去解码图片这个过程还是按照原图的尺寸去加载的，会导致解码阶段内存暴涨，还轮不到java层抛OOM就已经被系统杀死进程了。下面以加载一张艺术照为例，图片的尺寸为19500x6000px，加载时设置<strong>inSampleSize=8</strong>，那么理论上占用的内存不会超过<strong>128MB</strong>,但如下图native内存暴涨到了1.2GB。<br><img src="https://msisuzney.github.io/images/15_tu_1.png" alt="tu1.png"><br>显然这时<strong>inSampleSize=8</strong>对解码图片失效了，这是在内存比较大的手机上加载的，所以没有崩溃，但如果我们在一些内存比较低的设备，比如大屏终端，用户觉得这么大的屏幕，不用来轮播自己拍的美美照片简直浪费，可是这种设备内存注定低，一加载大图它就闪退了，md把它砸了！</p>
-<h3 id="原因"><a href="#原因" class="headerlink" title="原因"></a>原因</h3><p>根据我的总结，出现这个现象的是部分JPEG文件格式的大图，这些大图的特点是他们都是<strong>递增式JPEG</strong>，要理解和普通JPEG的区别还得从<strong>JPEG</strong>文件说起。</p>
-<h4 id="JPEG文件格式"><a href="#JPEG文件格式" class="headerlink" title="JPEG文件格式"></a>JPEG文件格式</h4><p><strong>JPEG(Joint Picture Expert Group)</strong> 本身只是描述如何将一个视频/图片转换为字节的数据流（如DCT变换、量化、哈夫曼树等等），但并没有说明这些字节如何在任何特定的存储媒体上被封存起来。<strong>JPEG/JFIF（JPEG File Interchange Format</strong>和<strong>JPEG/Exif（Exchange image file Format)</strong> 才是描述怎么保存<strong>JPEG</strong>图片的标准:</p>
-<ol>
-<li><strong>JPEG/JFIF</strong>文件格式标准是为了方便JPEG压缩图像在广泛的平台和应用间以最小的存储空间代价进行交换而设计的，它不包含JPEG/TIFF标准任何高级特性。</li>
-<li><strong>JPEG/Exif</strong>文件格式标准是Camera产业联合会发布，主要用于摄像设备上，摄像产业把Exif作为行业的元数据（metadata)交换格式。</li>
-</ol>
-<p>简单理解就是<strong>JPEG/JFIF</strong>只保存最基本的图片信息，而<strong>JPEG/Exif</strong>可以附加很多图片相关的信息在里面。但是忽略它们的区别，它们大致的文件格式是一样的，以<strong>JPEG/JFIF</strong>文件为例，由这几部分组成：SOI（文件头）+APP0（图像识别信息）+ DQT（定义量化表）+ SOF0（图像基本信息）+ DHT（定义Huffman表） + DRI（定义重新开始间隔）+ SOS（扫描行开始）+ EOI（文件尾，如图：<br><img src="https://msisuzney.github.io/images/15_tu_2.png" alt="tu1.png"><br> 其中<strong>APP0</strong>段就是代表<strong>JPEG/JFIF</strong>，里面保存了图片的基本信息，<strong>JPEG/Exif</strong>与此的区别是它紧跟着还有一个<strong>APP1</strong>段或者它就只有<strong>APP1</strong>段而没有<strong>APP0</strong>段，在<strong>APP1</strong>段里是根据Exif规定的标准保存的图片信息。</p>
-<h4 id="EncodingFormat"><a href="#EncodingFormat" class="headerlink" title="EncodingFormat"></a>EncodingFormat</h4><p>上文只是介绍了JPEG文件格式的标准，除此之外，不同的JPEG间还有编码方式的不同，这块比较深奥我也没搞懂，具体参考 <a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/JPEG">JPEG wikipedia</a>，但是根据多次验证，正是不同的编码方式导致了本文描述的OOM现象。参考上面图片里的格式，图像(不是图片文件)的基本信息放在了SOF（Start Of Frame）这个段里面，但是通常存在两种SOF，一个叫<strong>SOF0</strong>以<strong>0xFFC0</strong>识别，一个叫<strong>SOF2</strong>以<strong>0xFFC2</strong>，存在SOF0则说明这是一张baseline DCT-based JPEG（顺序式编码），存在SOF1则说明这是一张progressive DCT-based JPEG（递增式编码），递增式编码图片可将图像分数次处理，以从模糊到清晰的方式来传送、显示图像，通过多次验证是这种编码的JPEG大图导致了本文提到OOM。下面以这张19500x6000px的递增式编码JPEG为例介绍<strong>SOF2</strong>段：</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">截取的bytes: FFC200110817704C2C03011100021101031101</span><br><span class="line"><span class="comment">//解析：</span></span><br><span class="line"><span class="number">0xFF</span>, <span class="number">0xC2</span>,             <span class="comment">// SOF0 segement</span></span><br><span class="line"><span class="number">0x00</span>, <span class="number">0x11</span>,             <span class="comment">// 长度为17bytes，包括这2个bytes，但不包括0xFF, 0xC2这两个bytes，也就是实际的数据只有（17-2=15）个bytes</span></span><br><span class="line"><span class="number">0x08</span>,                   <span class="comment">// 每个像素的占用位数（8bits）</span></span><br><span class="line"><span class="number">0x17</span>, <span class="number">0x70</span>,             <span class="comment">// 图片的高度</span></span><br><span class="line"><span class="number">0x4C</span>, <span class="number">0x2C</span>,             <span class="comment">// 图片的宽度</span></span><br><span class="line"><span class="number">0x03</span>,                   <span class="comment">// 代表YCbCr彩色图，有3个组件分别是Y、Cb、Cr，接下来是三个组件</span></span><br><span class="line"><span class="number">0x01</span>, <span class="number">0x11</span>, <span class="number">0x00</span>,       <span class="comment">// 0x01=Y component, 0x11=垂直采样系数和水平采样系数都是1, 量化表号是0</span></span><br><span class="line"><span class="number">0x02</span>, <span class="number">0x11</span>, <span class="number">0x01</span>,       <span class="comment">// 0x02=Cb component,0x11=垂直采样系数和水平采样系数都是1, 量化表号是1</span></span><br><span class="line"><span class="number">0x03</span>, <span class="number">0x11</span>, <span class="number">0x01</span>        <span class="comment">// 0x03=Cr component,0x11=垂直采样系数和水平采样系数都是1, 量化表号是2</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//此处可知此处Y、Cb、Cr都是逐点采样，这是YUV444的数据。</span></span><br></pre></td></tr></table></figure>
-<p>其实如果把该图片转换成顺序式编码的，<strong>SOF1</strong>段内容和这个是一模一样的，我们只需要通过判断是否存在<strong>SOF1</strong>或者<strong>SOF2</strong>就可以区分是顺序式编码图片还是递增式编码图片。</p>
-<h3 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h3><p>由于加载递增式JPEG的的确确需要在解码阶段占用图片宽x高x4bytes的内存，这块作为应用开发者无能为力，只能通过其他方式规避这个问题。一个方法是在加载图片前获取宽高，计算下如果不采样加载会花多少内存，如果超过一个阈值，比2GB，这时需要判断下是否是递增式编码JPEG，如果是，那么采取其他措施，比如直接放弃加载提示用户不支持递增式编码JPEG😄。还有一种方案是如果这时是递增式编码JPEG，那么启动一个子进程将这张递增式编码JPEG转换成普通的JPEG并保存，完事了通知主进程可以加载普通的JPEG，然后主动杀死子进程，具体可以使用<a target="_blank" rel="noopener" href="https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/turbojpeg.h">libjpeg-turbo</a> 里的<strong>tjTransform函数</strong>，它的实现方法和<a target="_blank" rel="noopener" href="https://linux.die.net/man/1/jpegtran">jpegtran</a>一样的，<a target="_blank" rel="noopener" href="https://linux.die.net/man/1/jpegtran">jpegtran</a>介绍将JPEG文件转成JPEG文件会节约一些内存，用这张19500x6000px递增式编码JPEG测试大概占用600MB的内存。</p>
-<p>关键在于怎么判断递增式编码JPEG，我参考Android的<a target="_blank" rel="noopener" href="https://developer.android.com/reference/android/media/ExifInterface">ExifInterface</a>写了一个判断增式编码JPEG的类:<a target="_blank" rel="noopener" href="https://gist.github.com/msisuzney/d03fc0ea5761233f885f99e630aabf5c">JpegEncodingFormatChecker.java</a><br>，可以判断增式编码JPEG的图片。</p>
-<h3 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h3><p>至此，对图片加载理解更多一些，但是越学越觉得自己无知，作为应用开发者，其实只是一个承上启下的搬运工。承上，图片文件格式、编码算法？什么也不知道。启下，系统怎么渲染解码出来的位图的？也什么也不知道。再接再厉吧。</p>
-<p>参考：</p>
-<ol>
-<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/yun_hen/article/details/78135122">jpeg图片格式详解</a></li>
-<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1427939">JPEG文件格式解析 Exif 与 JFIF</a></li>
-<li><a target="_blank" rel="noopener" href="https://www.ccoderun.ca/programming/2017-01-31_jpeg/">Anatomy of a JPEG</a></li>
-<li><a target="_blank" rel="noopener" href="https://zh.wikipedia.org/wiki/JPEG">JPEG</a></li>
-<li><a target="_blank" rel="noopener" href="https://exiftool.org/">exiftool工具</a></li>
-</ol>
-
+          <p>Android开发或多或少都遇到过<strong>OutOfMemoryError</strong>，而平常开发中导致该错误的罪魁祸首很可能就是加载大图，为什么呢？因为我们解码出来需要显示的图片是实打实的位图（Bitmap)，一个像素需要4bytes的内存，一张普通的壁纸1920x1080px，就需要接近<strong>8MB</strong>（1920x1080x4B）的内存，这还是最理想的铺满全屏的Bitmap，实际上现在我们手机拍摄的照片都远超过了这个尺寸，需要的内存几乎翻了好几倍，更别提一些照相馆使用专业作图软件编辑生成的艺术照，动辄上万像素的宽高，一不小心光加载一张图就花了1、2GB的内存。有人会说搁着骗人呢
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2022/02/14/android%E8%A7%A3%E7%A0%81%E5%9B%BE%E7%89%87OOM/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 
