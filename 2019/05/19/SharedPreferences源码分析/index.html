@@ -8,7 +8,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="manifest" href="/images/avatar.jpg">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,14 +18,14 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"msisuzney.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
   <meta name="description" content="起因在项目开发中发现很多数据都是用SharedPreferences做本地保存的，操作SharedPreferences只需要建立Editor，然后这个向这个Editor对象put各种各样的键值对，最后调用它的commit或者apply保存信息即可，非常简单方便。同时注释文档中说明commit是同步的而apply是异步的，说明SharedPreferences是支持多线程的，那就有些疑惑了：  假">
 <meta property="og:type" content="article">
 <meta property="og:title" content="SharedPreferences源码分析">
-<meta property="og:url" content="http://example.com/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/index.html">
-<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:url" content="https://msisuzney.github.io/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s blog">
 <meta property="og:description" content="起因在项目开发中发现很多数据都是用SharedPreferences做本地保存的，操作SharedPreferences只需要建立Editor，然后这个向这个Editor对象put各种各样的键值对，最后调用它的commit或者apply保存信息即可，非常简单方便。同时注释文档中说明commit是同步的而apply是异步的，说明SharedPreferences是支持多线程的，那就有些疑惑了：  假">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/2_who_invoke_waitToFinish_.png">
@@ -33,7 +34,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/2_who_invoke_waitToFinish_.png">
 
-<link rel="canonical" href="http://example.com/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
+<link rel="canonical" href="https://msisuzney.github.io/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
 
 
 <script id="page-configurations">
@@ -46,7 +47,7 @@
   };
 </script>
 
-  <title>SharedPreferences源码分析 | Chenxin's Blog</title>
+  <title>SharedPreferences源码分析 | Chenxin's blog</title>
   
 
 
@@ -97,7 +98,7 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">Chenxin's Blog</h1>
+      <h1 class="site-title">Chenxin's blog</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
   </div>
@@ -156,7 +157,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -165,7 +166,7 @@
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's Blog">
+      <meta itemprop="name" content="Chenxin's blog">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -259,7 +260,7 @@
   </li>
   <li class="post-copyright-link">
     <strong>本文链接：</strong>
-    <a href="http://example.com/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" title="SharedPreferences源码分析">http://example.com/2019/05/19/SharedPreferences源码分析/</a>
+    <a href="https://msisuzney.github.io/2019/05/19/SharedPreferences%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" title="SharedPreferences源码分析">https://msisuzney.github.io/2019/05/19/SharedPreferences源码分析/</a>
   </li>
   <li class="post-copyright-license">
     <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-ND</a> 许可协议。转载请注明出处！

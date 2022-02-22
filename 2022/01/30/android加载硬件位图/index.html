@@ -8,7 +8,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
   <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
   <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
-  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="manifest" href="/images/avatar.jpg">
 
 <link rel="stylesheet" href="/css/main.css">
 
@@ -17,14 +18,14 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"msisuzney.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
   </script>
 
   <meta name="description" content="Bitmap.Config.HARDWARE 介绍最近在一些内存很低的机器上做应用内存优化，实际上除了排查内存泄漏外，其他常见的方法对快速降低内存占用不太明显。一个应用端的应用，特别是会加载很多图片的应用，大部分内存都用来加载Bitmap了，一张铺面全屏的图片，粗略算算会占用接近8MB的内存（1920x1080x4B），我们可以从减少Bitmap的内存占用入手降低native内存占用，常见的方法是">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Android加载硬件位图">
-<meta property="og:url" content="http://example.com/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/index.html">
-<meta property="og:site_name" content="Chenxin&#39;s Blog">
+<meta property="og:url" content="https://msisuzney.github.io/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s blog">
 <meta property="og:description" content="Bitmap.Config.HARDWARE 介绍最近在一些内存很低的机器上做应用内存优化，实际上除了排查内存泄漏外，其他常见的方法对快速降低内存占用不太明显。一个应用端的应用，特别是会加载很多图片的应用，大部分内存都用来加载Bitmap了，一张铺面全屏的图片，粗略算算会占用接近8MB的内存（1920x1080x4B），我们可以从减少Bitmap的内存占用入手降低native内存占用，常见的方法是">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://msisuzney.github.io/images/13_tu_1.png">
@@ -37,7 +38,7 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="https://msisuzney.github.io/images/13_tu_1.png">
 
-<link rel="canonical" href="http://example.com/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/">
+<link rel="canonical" href="https://msisuzney.github.io/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/">
 
 
 <script id="page-configurations">
@@ -50,7 +51,7 @@
   };
 </script>
 
-  <title>Android加载硬件位图 | Chenxin's Blog</title>
+  <title>Android加载硬件位图 | Chenxin's blog</title>
   
 
 
@@ -101,7 +102,7 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">Chenxin's Blog</h1>
+      <h1 class="site-title">Chenxin's blog</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
   </div>
@@ -160,7 +161,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -169,7 +170,7 @@
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's Blog">
+      <meta itemprop="name" content="Chenxin's blog">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
@@ -255,7 +256,7 @@
   </li>
   <li class="post-copyright-link">
     <strong>本文链接：</strong>
-    <a href="http://example.com/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/" title="Android加载硬件位图">http://example.com/2022/01/30/android加载硬件位图/</a>
+    <a href="https://msisuzney.github.io/2022/01/30/android%E5%8A%A0%E8%BD%BD%E7%A1%AC%E4%BB%B6%E4%BD%8D%E5%9B%BE/" title="Android加载硬件位图">https://msisuzney.github.io/2022/01/30/android加载硬件位图/</a>
   </li>
   <li class="post-copyright-license">
     <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-ND</a> 许可协议。转载请注明出处！
