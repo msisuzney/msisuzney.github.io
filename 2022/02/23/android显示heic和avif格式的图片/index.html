@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="manifest" href="/images/avatar.jpg">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"msisuzney.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="从开发者的角度讲，一张图片有两种形态，一种是加载进内存时用于转换、显示的位图，一种则是用于传送、保存的压缩文件。位图形式的图片变化不多，不外乎是一个像素用几个字节保存、保存在哪块内存的变化。但是压缩文件形式的图片间的差异就非常大，比如我们经常用到的PNG、JPEG、GIF、WebP的图片格式，每一个都有一套自己的实现规范。而且图片格式的进步没有停止，新的格式在过去几年涌现，比如苹果最先支持的HEI">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android显示HEIC和AVIF格式的图片">
+<meta property="og:url" content="https://msisuzney.github.io/2022/02/23/android%E6%98%BE%E7%A4%BAheic%E5%92%8Cavif%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%9B%BE%E7%89%87/index.html">
+<meta property="og:site_name" content="Chenxin&#39;s blog">
+<meta property="og:description" content="从开发者的角度讲，一张图片有两种形态，一种是加载进内存时用于转换、显示的位图，一种则是用于传送、保存的压缩文件。位图形式的图片变化不多，不外乎是一个像素用几个字节保存、保存在哪块内存的变化。但是压缩文件形式的图片间的差异就非常大，比如我们经常用到的PNG、JPEG、GIF、WebP的图片格式，每一个都有一套自己的实现规范。而且图片格式的进步没有停止，新的格式在过去几年涌现，比如苹果最先支持的HEI">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://msisuzney.github.io/images/16_tu_1.png">
+<meta property="og:image" content="https://msisuzney.github.io/images/16_tu_2.HEIC">
+<meta property="og:image" content="https://msisuzney.github.io/images/16_tu_3.jpg">
+<meta property="og:image" content="https://msisuzney.github.io/images/16_tu_4.png">
+<meta property="og:image" content="https://msisuzney.github.io/images/16_tu_5.png">
+<meta property="article:published_time" content="2022-02-23T13:58:11.000Z">
+<meta property="article:modified_time" content="2022-02-28T16:37:14.069Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://msisuzney.github.io/images/16_tu_1.png">
+
+<link rel="canonical" href="https://msisuzney.github.io/2022/02/23/android%E6%98%BE%E7%A4%BAheic%E5%92%8Cavif%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%9B%BE%E7%89%87/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android显示HEIC和AVIF格式的图片 | Chenxin's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Chenxin's blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">6</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">16</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2022/02/23/android%E6%98%BE%E7%A4%BAheic%E5%92%8Cavif%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%9B%BE%E7%89%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Chenxin's blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android显示HEIC和AVIF格式的图片
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2022-02-23 21:58:11" itemprop="dateCreated datePublished" datetime="2022-02-23T21:58:11+08:00">2022-02-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-03-01 00:37:14" itemprop="dateModified" datetime="2022-03-01T00:37:14+08:00">2022-03-01</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD/" itemprop="url" rel="index"><span itemprop="name">图片加载</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>从开发者的角度讲，一张图片有两种形态，一种是加载进内存时用于转换、显示的位图，一种则是用于传送、保存的压缩文件。位图形式的图片变化不多，不外乎是一个像素用几个字节保存、保存在哪块内存的变化。但是压缩文件形式的图片间的差异就非常大，比如我们经常用到的PNG、JPEG、GIF、WebP的图片格式，每一个都有一套自己的实现规范。而且图片格式的进步没有停止，新的格式在过去几年涌现，比如苹果最先支持的HEIC、最近Android开始支持的AVIF。</p>
+<span id="more"></span>
+<h3 id="什么是HEIF、HEIC、AVIF"><a href="#什么是HEIF、HEIC、AVIF" class="headerlink" title="什么是HEIF、HEIC、AVIF?"></a>什么是HEIF、HEIC、AVIF?</h3><p>在进一步介绍Android显示HEIC、AVIF图片前，先来捋清楚这三者之间的关系</p>
+<h4 id="HEIF"><a href="#HEIF" class="headerlink" title="HEIF"></a>HEIF</h4><p>High Efficiency Image File Format（HEIF）由 Moving Picture Experts Group ( MPEG，即动态图像专家组) 于2013年开发，基于ISOBMFF标准。<strong>HEIF是图片格式的容器</strong>，不特指某种图片格式，和传统的图片格式有区别，比如JPEG，它表面上只是描述如何将一个图片转换为字节的数据流（如DCT变换、量化、哈夫曼树等），但是它也间接约束了保存形式，比如JPEG/JFIF 和 JPEG/Exif 的差别只是某个段的差异，图像数据都依靠JPEG的解码器才能解码。而HEIF只是规定了保存图片格式时各种数据（格式、元数据、压缩数据）怎么存放，至于存放的数据用什么处理它不关心，下面是诺基亚给出的HEIF的文件主要结构：<br><img src="https://msisuzney.github.io/images/16_tu_1.png" alt="tu1.png"><br>数据只存在叫Box的数据结构中，Box可以嵌套其他Box。静态图片文件存在ftyp、meta、mdat这三个主要的Box，moov Box是用来记录图片序列之间的差异，单张图片没有这个Box。</p>
+<h4 id="HEIC"><a href="#HEIC" class="headerlink" title="HEIC"></a>HEIC</h4><p>HEIC是HEIF的一个变种，它表示这个文件使用<strong>HEVC</strong>编解码器，最先在苹果的设备上普及，以一张iPhone拍摄的HEIC照片为例介绍它的文件格式。<br>最简单的是ftyp Box，它描述了这张图片的图片格式，以及它可以兼容的图片格式，：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">heic文件前<span class="number">0x28</span>(十进制<span class="number">40</span>)个字节：</span><br><span class="line"><span class="number">0x00000028</span> <span class="number">66747970</span> <span class="number">68656963</span> <span class="number">00000000</span> 6D696631 4D694845 4D695072 6D696166 4D694842 <span class="number">68656963</span></span><br><span class="line">    </span><br><span class="line"><span class="number">0x00000028</span>   <span class="comment">//Box长度：40字节</span></span><br><span class="line"><span class="number">0x66747970</span>   <span class="comment">// Box名字：ftyp</span></span><br><span class="line"><span class="number">0x68656963</span>   <span class="comment">// 文件格式：字符heic</span></span><br><span class="line"><span class="number">0x00000000</span>   <span class="comment">// 版本号</span></span><br><span class="line"><span class="number">0x6D696631</span> 4D694845 4D695072 6D696166 4D694842 <span class="number">68656963</span> <span class="comment">//兼容格式：mif1 MiHE MiPr miaf MiHB heic</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>接下来是meta Box 和 mdat Box，具体的数据结构就不介绍了，比起JPEG复杂太多，只需记住在meta Box里面记录了图片数据的怎样保存的，iPhone拍摄的图片都是以tile方块分块记录，这里只会记录tile在mdat Box的具体位置，数据都在mdat Box里。Exif的数据也是这样记录的。<br>HEIC文件格式可以参考这篇文章：<br><a target="_blank" rel="noopener" href="http://cheeky4n6monkey.blogspot.com/2017/10/monkey-takes-heic.html">monkey-takes-heic</a><br>HEIF/HEIC详细标准见：<br><a target="_blank" rel="noopener" href="https://www.iso.org/standard/66067.html">ISO/IEC 23008-12:2017</a></p>
+<h4 id="AVIF"><a href="#AVIF" class="headerlink" title="AVIF"></a>AVIF</h4><p>AVIF也是HEIF的一个变种，它代表这个文件使用<strong>AV1</strong>的编解码器，是完全免费的，而HEIC使用到的HEVC编解码器需要收取专利费，AVIF主要是Netflix、Google等支持。同理它也是由ftyp、meta、mdat这三大Box构成，以最简单的ftyp为例：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">avif文件前<span class="number">0x18</span>(十进制<span class="number">24</span>)个字节：</span><br><span class="line"><span class="number">0x00000018</span> <span class="number">66747970</span> <span class="number">61766966</span> <span class="number">00000000</span> <span class="number">61766966</span> 6D696631</span><br><span class="line"></span><br><span class="line"><span class="number">0x00000018</span>  <span class="comment">//Box长度：24字节</span></span><br><span class="line"><span class="number">0x66747970</span> <span class="comment">// Box名字：ftyp</span></span><br><span class="line"><span class="number">0x61766966</span> <span class="comment">// 文件格式：字符avif</span></span><br><span class="line"><span class="number">0x00000000</span> <span class="comment">// 版本号</span></span><br><span class="line"><span class="number">0x61766966</span> 6D696631 <span class="comment">//兼容格式：avif mif1</span></span><br></pre></td></tr></table></figure>
+<p>AVIF与其他图片格式的对比见Netflix的文章:<br><a target="_blank" rel="noopener" href="https://netflixtechblog.com/avif-for-next-generation-image-coding-b1d75675fe4">AVIF for Next-Generation Image Coding</a></p>
+<h3 id="Android显示HEIC、AVIF图片"><a href="#Android显示HEIC、AVIF图片" class="headerlink" title="Android显示HEIC、AVIF图片"></a>Android显示HEIC、AVIF图片</h3><p>Android在Android 9开始支持解码HEIC图片，在Android 12开始支持解码AVIF图片。显然版本都太高，如果业务要支持显示这两种图片的话就需要自己软解码这两种图片格式的文件。开源项目<a target="_blank" rel="noopener" href="https://github.com/strukturag/libheif">libheif</a>正好满足这个需要，对于HEIC图片它使用x265软解码，对于AVIF它默认使用dav1d软解码。<br>为了方便直接使用，我基于<strong>libheif</strong>开发了<strong>GlideHeifDecoder</strong>库，它是一个Glide的插件，帮我们封装好了对libheif的调用，只需要简单引入就可以让Glide支持软解码、显示这两种格式的图片，具体的使用方式见<a target="_blank" rel="noopener" href="https://github.com/msisuzney/GlideHeifDecoder">GlideHeifDecoder使用介绍</a>，GlideHeifDecoder参考了<a target="_blank" rel="noopener" href="https://github.com/zjupure/GlideWebpDecoder">GlideWebpDecoder</a>，创建了一个AvifBitmapFactory工具类解码这两种格式的图片，支持Bitmap的复用，使用方式和BitmapFactory一样。</p>
+<h4 id="加载性能对比"><a href="#加载性能对比" class="headerlink" title="加载性能对比"></a>加载性能对比</h4><p>这里有两张相同图像，图片格式不同，第一个是HEIC，大小1.8MB；第二个是JPEG，大小2.7MB。<br>HEIC图：<br><img src="https://msisuzney.github.io/images/16_tu_2.HEIC" title="HEIC图片" height="50%" width="50%"><br>JPEG图：<br><img src="https://msisuzney.github.io/images/16_tu_3.jpg" title="JPEG图片" height="50%" width="50%"></p>
+<p>现在将这两张图放在resource下raw目录下，使用集成了<strong>GlideHeifDecoder</strong>的Glide分别按原始尺寸加载这两种图，观察它们的耗时与内存占用情况，<br>加载方式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Glide.with(<span class="keyword">this</span>).asBitmap().load(R.raw.jpg or R.raw.heic).into(object :CustomTarget&lt;Bitmap&gt;()&#123;</span><br><span class="line">         <span class="function">override fun <span class="title">onResourceReady</span><span class="params">(resource: Bitmap, transition: Transition&lt;in Bitmap&gt;?)</span> </span>&#123;</span><br><span class="line">         &#125;</span><br><span class="line">         <span class="function">override fun <span class="title">onLoadCleared</span><span class="params">(placeholder: Drawable?)</span> </span>&#123;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;)</span><br></pre></td></tr></table></figure>
+
+<h5 id="JPEG与HEIC解码耗时对比"><a href="#JPEG与HEIC解码耗时对比" class="headerlink" title="JPEG与HEIC解码耗时对比"></a>JPEG与HEIC解码耗时对比</h5><p>打开Glide的DecodeJob类日志开关：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">adb shell setprop log.tag.DecodeJob VERBOSE</span><br></pre></td></tr></table></figure>
+<p>DecodeJob对象就会打印解码一张图片最终耗时:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//HEIC软解</span></span><br><span class="line">V/DecodeJob: Decoded result com.bumptech.glide.load.engine.LockedResource@7902c7c in <span class="number">2454.5188009999997</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//JPEG</span></span><br><span class="line">V/DecodeJob: Decoded result com.bumptech.glide.load.engine.LockedResource@7902c7c in <span class="number">188.337395</span></span><br></pre></td></tr></table></figure>
+<p>耗时方面，JPEG只花了188ms，HEIC花了2454ms，原因不外乎时间与空间的置换，HEIC采用的压缩算法更优秀，那么解码时间就会越长，而且我们使用的是软解码，耗时会更长。</p>
+<h4 id="JPEG与HEIC解码内存对比"><a href="#JPEG与HEIC解码内存对比" class="headerlink" title="JPEG与HEIC解码内存对比"></a>JPEG与HEIC解码内存对比</h4><p>HEIC解码内存变化情况：<br><img src="https://msisuzney.github.io/images/16_tu_4.png" alt="tu4.png"></p>
+<p>JPEG解码内存变化情况：<br><img src="https://msisuzney.github.io/images/16_tu_5.png" alt="tu5.png"><br>内存占用方面，<strong>Graphics</strong>共享内存是一样的，而<strong>native</strong>方面解码HEIC会多花80MB的内存，这大概是加载了so文件并且不会和其他进程共享的原因。</p>
+<h5 id="Glide-AVIF-integration-library"><a href="#Glide-AVIF-integration-library" class="headerlink" title="Glide AVIF integration library"></a>Glide AVIF integration library</h5><p>Glide在4.13.0版本开始支持加载AVIF图片，也是一个Glide插件，使用<a target="_blank" rel="noopener" href="https://github.com/AOMediaCodec/libavif">libavif</a>解码，集成的方式和<strong>GlideHeifDecoder</strong>一样。如果只是需要支持AVIF可以直接集成这个库。libheif使用的x265，可能会有专利担忧，而libavif是完全免费的，可以放心使用。<br>作为小白鼠的我集成了后发现用不了，原来是 AVIF integration library忘加 <strong>annotationProcessor</strong>了，导致Glide找不到这个插件😭，为此给他们报了一个issue，也很快解决啦，如果要使用这个插件，记得使用<a target="_blank" rel="noopener" href="https://github.com/bumptech/glide/releases/tag/v4.13.1">4.13.1版本</a>。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>HEIC和AVIF都是比较新的图片格式，对比于JPEG说，图片文件更小了，可拓展性更强，更全面，更复杂(格式都和视频格式差不多了。。)，Android对他们的支持也是在比较新的版本上，如果要在业务上使用这两种格式需要自己兼容解码，但由于采用的压缩算法比较厉害，那么软解码需要的时间就会越长，可能相比于节省的下载图片的带宽与耗时，解码用的时间会更长，可能得不偿失用户体验会更差。</p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://msisuzney.github.io/2022/02/23/android%E6%98%BE%E7%A4%BAheic%E5%92%8Cavif%E6%A0%BC%E5%BC%8F%E7%9A%84%E5%9B%BE%E7%89%87/" title="Android显示HEIC和AVIF格式的图片">https://msisuzney.github.io/2022/02/23/android显示heic和avif格式的图片/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-ND</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/02/14/android%E8%A7%A3%E7%A0%81%E5%9B%BE%E7%89%87OOM/" rel="prev" title="Android解码图片OOM">
+      <i class="fa fa-chevron-left"></i> Android解码图片OOM
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BB%80%E4%B9%88%E6%98%AFHEIF%E3%80%81HEIC%E3%80%81AVIF"><span class="nav-number">1.</span> <span class="nav-text">什么是HEIF、HEIC、AVIF?</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#HEIF"><span class="nav-number">1.1.</span> <span class="nav-text">HEIF</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HEIC"><span class="nav-number">1.2.</span> <span class="nav-text">HEIC</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#AVIF"><span class="nav-number">1.3.</span> <span class="nav-text">AVIF</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Android%E6%98%BE%E7%A4%BAHEIC%E3%80%81AVIF%E5%9B%BE%E7%89%87"><span class="nav-number">2.</span> <span class="nav-text">Android显示HEIC、AVIF图片</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%8A%A0%E8%BD%BD%E6%80%A7%E8%83%BD%E5%AF%B9%E6%AF%94"><span class="nav-number">2.1.</span> <span class="nav-text">加载性能对比</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#JPEG%E4%B8%8EHEIC%E8%A7%A3%E7%A0%81%E8%80%97%E6%97%B6%E5%AF%B9%E6%AF%94"><span class="nav-number">2.1.1.</span> <span class="nav-text">JPEG与HEIC解码耗时对比</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JPEG%E4%B8%8EHEIC%E8%A7%A3%E7%A0%81%E5%86%85%E5%AD%98%E5%AF%B9%E6%AF%94"><span class="nav-number">2.2.</span> <span class="nav-text">JPEG与HEIC解码内存对比</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#Glide-AVIF-integration-library"><span class="nav-number">2.2.1.</span> <span class="nav-text">Glide AVIF integration library</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">2.3.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">16</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:chenxin7930@qq.com" title="E-Mail → mailto:chenxin7930@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-feather"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">chenxin</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
