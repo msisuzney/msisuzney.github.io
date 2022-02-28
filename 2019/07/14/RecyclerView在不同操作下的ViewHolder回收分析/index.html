@@ -25,7 +25,7 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="RecyclerView在不同操作下的ViewHolder回收分析">
 <meta property="og:url" content="https://msisuzney.github.io/2019/07/14/RecyclerView%E5%9C%A8%E4%B8%8D%E5%90%8C%E6%93%8D%E4%BD%9C%E4%B8%8B%E7%9A%84ViewHolder%E5%9B%9E%E6%94%B6%E5%88%86%E6%9E%90/index.html">
-<meta property="og:site_name" content="Chenxin&#39;s blog">
+<meta property="og:site_name" content="chenxin&#39;s blog">
 <meta property="og:description" content="起因RV在几乎在所有的有界面的Android应用都会使用到，可以说日常开发中RV是老熟人天天见，可是仔细想想熟悉它的什么呢？熟悉的是怎么去使用，对于它的内部原理太过陌生。曾经多次点看它的源码，但都迷失在成千上万的代码与注释中。幸好网上还有很多关于RV优秀的文章，让我能抓住RV的一些重点，其中一个重点就是它对viewHolder的回收与复用机制，关于这一块网上很多文章已经分析过了，Recycler、">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://raw.githubusercontent.com/msisuzney/MyBlog/master/images/3_setAdapter.png">
@@ -49,7 +49,7 @@
   };
 </script>
 
-  <title>RecyclerView在不同操作下的ViewHolder回收分析 | Chenxin's blog</title>
+  <title>RecyclerView在不同操作下的ViewHolder回收分析 | chenxin's blog</title>
   
 
 
@@ -100,7 +100,7 @@
 
     <a href="/" class="brand" rel="start">
       <span class="logo-line-before"><i></i></span>
-      <h1 class="site-title">Chenxin's blog</h1>
+      <h1 class="site-title">chenxin's blog</h1>
       <span class="logo-line-after"><i></i></span>
     </a>
   </div>
@@ -168,7 +168,7 @@
     </span>
 
     <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Chenxin's blog">
+      <meta itemprop="name" content="chenxin's blog">
     </span>
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
