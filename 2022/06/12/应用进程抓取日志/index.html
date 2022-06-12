@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="manifest" href="/images/avatar.jpg">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"msisuzney.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="平常我都是使用adb shell logcat 抓日志，开发的时候直接使用Android Studio查看Android的日志信息，没有仔细思考过Android的日志子系统究竟是怎么工作的。最近有个小功能需要在应用进程端抓取实时的日志信息，于是写了如下的抓取日志的demo代码：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="应用进程抓取日志">
+<meta property="og:url" content="https://msisuzney.github.io/2022/06/12/%E5%BA%94%E7%94%A8%E8%BF%9B%E7%A8%8B%E6%8A%93%E5%8F%96%E6%97%A5%E5%BF%97/index.html">
+<meta property="og:site_name" content="chenxin&#39;s blog">
+<meta property="og:description" content="平常我都是使用adb shell logcat 抓日志，开发的时候直接使用Android Studio查看Android的日志信息，没有仔细思考过Android的日志子系统究竟是怎么工作的。最近有个小功能需要在应用进程端抓取实时的日志信息，于是写了如下的抓取日志的demo代码：">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-06-12T08:19:10.000Z">
+<meta property="article:modified_time" content="2022-06-12T13:38:28.180Z">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="https://msisuzney.github.io/2022/06/12/%E5%BA%94%E7%94%A8%E8%BF%9B%E7%A8%8B%E6%8A%93%E5%8F%96%E6%97%A5%E5%BF%97/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>应用进程抓取日志 | chenxin's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">chenxin's blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">7</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">23</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2022/06/12/%E5%BA%94%E7%94%A8%E8%BF%9B%E7%A8%8B%E6%8A%93%E5%8F%96%E6%97%A5%E5%BF%97/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="chenxin's blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          应用进程抓取日志
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-06-12 16:19:10 / 修改时间：21:38:28" itemprop="dateCreated datePublished" datetime="2022-06-12T16:19:10+08:00">2022-06-12</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>平常我都是使用<strong>adb shell logcat</strong> 抓日志，开发的时候直接使用Android Studio查看Android的日志信息，没有仔细思考过Android的日志子系统究竟是怎么工作的。最近有个小功能需要在应用进程端抓取实时的日志信息，于是写了如下的抓取日志的demo代码：</p>
+<span id="more"></span>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MainActivity</span> : <span class="title">Activity</span>(),</span></span><br><span class="line"><span class="class">    <span class="title">CoroutineScope</span> <span class="title">by</span> <span class="title">CoroutineScope</span>(<span class="title">Dispatchers</span>.<span class="title">Main</span> + <span class="title">SupervisorJob</span>()) </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">var</span> logcatJob: Job? = <span class="keyword">null</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">var</span> logJob: Job? = <span class="function"><span class="keyword">null</span></span></span><br><span class="line"><span class="function">    fun <span class="title">start</span><span class="params">(view: android.view.View)</span> </span>&#123;</span><br><span class="line">        logcatJob?.cancel()</span><br><span class="line">        logJob?.cancel()</span><br><span class="line">        val tv = findViewById&lt;TextView&gt;(R.id.tv)</span><br><span class="line">        tv.text = <span class="keyword">null</span></span><br><span class="line">        logcatJob = launch (CoroutineName(<span class="string">&quot;log read&quot;</span>))&#123;</span><br><span class="line">            flow &#123;</span><br><span class="line">                <span class="keyword">while</span> (currentCoroutineContext().isActive) &#123;</span><br><span class="line">                    Runtime.getRuntime().exec(<span class="string">&quot;logcat -c&quot;</span>)</span><br><span class="line">                    Runtime.getRuntime().exec(<span class="string">&quot;logcat&quot;</span>).inputStream?.use &#123;</span><br><span class="line">                        val bytes = ByteArray(<span class="number">1024</span>)</span><br><span class="line">                        <span class="keyword">while</span> (currentCoroutineContext().isActive) &#123;</span><br><span class="line">                            val len = it.read(bytes)</span><br><span class="line">                            <span class="keyword">if</span> (len != -<span class="number">1</span>) &#123;</span><br><span class="line">                                emit(String(bytes, <span class="number">0</span>, len))</span><br><span class="line">                            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                                <span class="keyword">break</span></span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;.flowOn(Dispatchers.IO).collect &#123;</span><br><span class="line">                tv.append(it)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        logJob = launch(Dispatchers.IO + CoroutineName(<span class="string">&quot;log write&quot;</span>)) &#123;</span><br><span class="line">            <span class="keyword">var</span> i = <span class="number">0</span></span><br><span class="line">            <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">                delay(<span class="number">2000</span>)</span><br><span class="line">                Log.d(<span class="string">&quot;Cxx&quot;</span>, <span class="string">&quot;$&#123;i++&#125;&quot;</span>)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>这段的确能抓到日志，但是我发现了一个以前一直没注意到的现象，这段代码在普通的应用进程只能抓到自己进程的日志，不能抓到其他进程的日志，而把这段代码放到标记<strong>system uid</strong>属性的进程，就能抓到全局的日志信息了。顿时感到好奇Android究竟是采用的什么样的机制来向不同的进程返回不同的日志信息的？</p>
+<h3 id="创建子进程的方式"><a href="#创建子进程的方式" class="headerlink" title="创建子进程的方式"></a>创建子进程的方式</h3><p>抓取日志时用到了 Runtime.getRuntime().exec() 方法，它会直接启动一个子进程去执行输入的命令，根据我现在的知识，Android应用进程有三种方式可以启动子线程：</p>
+<ol>
+<li><p>使用 Runtime.getRuntime().exec() 执行命令，它启动了一个新的进程去执行命令，<strong>exec</strong>创建的子进程的父进程<strong>pid</strong>是创建者的进程的<strong>pid</strong>，但不同于<strong>fork</strong>，<strong>exec</strong>创建的子进程不会拷贝父进程的内存空间，也没有Java运行时环境。</p>
+</li>
+<li><p>使用 <strong>fork</strong> 方法:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">extern <span class="string">&quot;C&quot;</span> <span class="function">JNIEXPORT <span class="keyword">void</span> JNICALL</span></span><br><span class="line"><span class="function"><span class="title">Java_com_test_fork_App_fork</span><span class="params">(</span></span></span><br><span class="line"><span class="params"><span class="function">        JNIEnv *env,</span></span></span><br><span class="line"><span class="params"><span class="function">        jobject <span class="comment">/* this */</span>)</span> </span>&#123;</span><br><span class="line">    pid_t pid = fork();</span><br><span class="line">    LOGD(<span class="string">&quot;native pid: %d&quot;</span>, pid);</span><br><span class="line">    <span class="keyword">if</span> (!pid) &#123;</span><br><span class="line">        LOGD(<span class="string">&quot;child process&quot;</span>);</span><br><span class="line">        <span class="keyword">int</span> x = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">            LOGD(<span class="string">&quot;child process print:%d&quot;</span>, x++);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    LOGD(<span class="string">&quot;parent pid: %d&quot;</span>, pid);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>创建出的子进程会拷贝父进程的内存空间，自然它会有Java运行时环境，但该进程没有走过Android进程的启动逻辑，导致没有注册过<strong>Binder IPC</strong>，会在使用到Binder通信的地方报错。</p>
+</li>
+<li><p>组件声明 <strong>android:process属性</strong> ，这是Android中创建子进程主要方法，创建的子进程实际上是一个新的Android进程，所以完全具备Java、Android的运行环境，它的uid和应用主进程一样，但父进程却是Zygote进程。</p>
+</li>
+</ol>
+<h3 id="logcat的基本原理"><a href="#logcat的基本原理" class="headerlink" title="logcat的基本原理"></a>logcat的基本原理</h3><p>应用进程启动logcat子进程后，会找到logcat命令对应的入口方法执行：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"> system/logging/logcat/logcat.cpp</span><br><span class="line"></span><br><span class="line">-&gt; main()</span><br><span class="line">  -&gt;logcat.Run()</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">true</span></span><br><span class="line">      -&gt; android_logger_list_read()</span><br><span class="line">        -&gt; LogdRead()</span><br><span class="line">          -&gt;  logdOpen()</span><br><span class="line">            -&gt; recv(&amp;log_msg)</span><br><span class="line">    end <span class="keyword">while</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><strong>logcat</strong>是通过<strong>socket</strong>通信的方式获取日志信息的，<strong>logdOpen</strong>方法会打开监听 <strong>dev/socket/logdr</strong> 端口，然后开始接收<strong>socket</strong>返回的数据，收到日志数据后再对它进行格式处理，最后写入到文件流中。</p>
+<h3 id="logd进程的主要逻辑"><a href="#logd进程的主要逻辑" class="headerlink" title="logd进程的主要逻辑"></a>logd进程的主要逻辑</h3><p><strong>logcat</strong>是<strong>socket</strong>的客户端，那一定存在一个与之通信的服务端，写日志的服务端是在<strong>logd</strong>进程中创建的，<strong>logd</strong>进程是Android中专门处理日志的进程，由<strong>init</strong>进程直接启动：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">system/logging/logd/logd.rc</span><br><span class="line">service logd /system/bin/logd</span><br><span class="line">    socket logd stream <span class="number">0666</span> logd logd</span><br><span class="line">    socket logdr seqpacket <span class="number">0666</span> logd logd</span><br><span class="line">    socket logdw dgram+passcred <span class="number">0222</span> logd logd</span><br><span class="line">    ......</span><br></pre></td></tr></table></figure>
+<p><strong>init</strong>进程在解析<strong>logd.rc</strong>文件时会启动<strong>logd</strong>进程，并创建三个<strong>socket</strong>：</p>
+<ol>
+<li><strong>dev/socket/logd</strong> 用于接收客户端发送的指令</li>
+<li><strong>dev/socket/logdw</strong> 用于客户端写入日志信息</li>
+<li><strong>dev/socket/logdr</strong>用于返回给客户端日志信息。</li>
+</ol>
+<p>主要关注与<strong>dev/socket/logdr</strong>相关的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">system/logging/logd/main.cpp</span><br><span class="line"></span><br><span class="line">-&gt; main()</span><br><span class="line">  -&gt;  <span class="keyword">new</span> LogReader(log_buffer, &amp;reader_list);</span><br><span class="line">  -&gt; reader-&gt;startListener()</span><br><span class="line">    -&gt; pthread_create(&amp;mThread, nullptr, SocketListener::threadStart)</span><br><span class="line">      -&gt; SocketListener::threadStart</span><br><span class="line">      -&gt; runListener()</span><br><span class="line">         <span class="keyword">while</span> <span class="keyword">true</span></span><br><span class="line">            -&gt; accept4()</span><br><span class="line">            -&gt; onDataAvailable(c)<span class="comment">// c: SocketClient</span></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><strong>logd</strong>进程启动<strong>LogReader</strong>线程，用于监听<strong>dev/socket/logdr</strong>，一旦有客户端请求到来，调用<strong>onDataAvailable</strong>方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Note returning false will release the SocketClient instance.</span></span><br><span class="line">bool LogReader::onDataAvailable(SocketClient* cli) &#123;</span><br><span class="line">    <span class="keyword">static</span> bool name_set;</span><br><span class="line">    <span class="keyword">if</span> (!name_set) &#123;</span><br><span class="line">        prctl(PR_SET_NAME, <span class="string">&quot;logd.reader&quot;</span>);</span><br><span class="line">        name_set = <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">char</span> buffer[<span class="number">255</span>];</span><br><span class="line">    <span class="comment">//读取客户端发送过来的信息</span></span><br><span class="line">    <span class="keyword">int</span> len = read(cli-&gt;getSocket(), buffer, sizeof(buffer) - <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (len &lt;= <span class="number">0</span>) &#123;</span><br><span class="line">        DoSocketDelete(cli);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    buffer[len] = <span class="string">&#x27;\0&#x27;</span>;</span><br><span class="line"></span><br><span class="line">    ......</span><br><span class="line">    <span class="comment">//客户端socket标志位</span></span><br><span class="line">    unsigned <span class="keyword">int</span> logMask = -<span class="number">1</span>;</span><br><span class="line">    ......</span><br><span class="line"></span><br><span class="line">    <span class="comment">//读取客户端进程的pid</span></span><br><span class="line">    pid_t pid = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">const</span> <span class="keyword">char</span> _pid[] = <span class="string">&quot; pid=&quot;</span>;</span><br><span class="line">    cp = strstr(buffer, _pid);</span><br><span class="line">    <span class="keyword">if</span> (cp) &#123;</span><br><span class="line">        pid = atol(cp + sizeof(_pid) - <span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    bool nonBlock = <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">if</span> (!fastcmp&lt;strncmp&gt;(buffer, <span class="string">&quot;dumpAndClose&quot;</span>, <span class="number">12</span>)) &#123;</span><br><span class="line">        <span class="comment">// Allow writer to get some cycles, and wait for pending notifications</span></span><br><span class="line">        sched_yield();</span><br><span class="line">        logd_lock.lock();</span><br><span class="line">        logd_lock.unlock();</span><br><span class="line">        sched_yield();</span><br><span class="line">        nonBlock = <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">//是否可读日志</span></span><br><span class="line">    bool privileged = clientHasLogCredentials(cli);</span><br><span class="line">    bool can_read_security = CanReadSecurityLogs(cli);</span><br><span class="line">    <span class="keyword">if</span> (!can_read_security) &#123;</span><br><span class="line">        logMask &amp;= ~(<span class="number">1</span> &lt;&lt; LOG_ID_SECURITY);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    std::<span class="function">unique_ptr&lt;LogWriter&gt; <span class="title">socket_log_writer</span><span class="params">(new SocketLogWriter(<span class="keyword">this</span>, cli, privileged)</span>)</span>;</span><br><span class="line">    ......</span><br><span class="line">        auto flush_to_state = log_buffer_-&gt;CreateFlushToState(sequence, logMask);</span><br><span class="line">        log_buffer_-&gt;FlushTo(socket_log_writer.get(), *flush_to_state, log_find_start);</span><br><span class="line">    ......</span><br><span class="line"></span><br><span class="line">    <span class="comment">//创建监听log_buffer的线程</span></span><br><span class="line">    auto lock = std::lock_guard&#123;logd_lock&#125;;</span><br><span class="line">    auto entry = std::make_unique&lt;LogReaderThread&gt;(log_buffer_, reader_list_,</span><br><span class="line">                                                   std::move(socket_log_writer), nonBlock, tail,</span><br><span class="line">                                                   logMask, pid, start, sequence, deadline);</span><br><span class="line">    <span class="comment">// release client and entry reference counts once done</span></span><br><span class="line">    cli-&gt;incRef();</span><br><span class="line">    reader_list_-&gt;reader_threads().emplace_front(std::move(entry));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Set acceptable upper limit to wait for slow reader processing b/27242723</span></span><br><span class="line">    struct timeval t = &#123; LOGD_SNDTIMEO, <span class="number">0</span> &#125;;</span><br><span class="line">    setsockopt(cli-&gt;getSocket(), SOL_SOCKET, SO_SNDTIMEO, (<span class="keyword">const</span> <span class="keyword">char</span>*)&amp;t,</span><br><span class="line">               sizeof(t));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>该方法主要是监听<strong>socket</strong>的请求，一旦有请求，读取发送的数据，并解析出对应的属性，例如对方的<strong>pid</strong>，<strong>logMusk</strong>，权限等，之后<strong>log_buffer_-&gt;FlushTo</strong> 向<strong>socket对端</strong>写入此时 <strong>log_buffer</strong> 搜集的日志，除此之外新建了一个 <strong>LogReaderThread</strong> 线程用于监听 <strong>log_buffer</strong> ，一旦有新日志到来调用 <strong>reader_thread-&gt;TriggerReader</strong> 通知该线程去读日志，最后也通过 <strong>log_buffer_-&gt;FlushTo</strong> 写入<strong>socket对端</strong>。</p>
+<p><strong>log_buffer_-&gt;FlushTo</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">system/logging/logd/SerializedLogBuffer.cpp</span><br><span class="line"></span><br><span class="line">bool SerializedLogBuffer::FlushTo(</span><br><span class="line">        LogWriter* writer, FlushToState&amp; abstract_state,</span><br><span class="line">        <span class="keyword">const</span> std::function&lt;FilterResult(log_id_t log_id, pid_t pid, uint64_t sequence,</span><br><span class="line">                                         log_time realtime)&gt;&amp; filter) &#123;</span><br><span class="line">    auto&amp; state = reinterpret_cast&lt;SerializedFlushToState&amp;&gt;(abstract_state);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (state.HasUnreadLogs()) &#123;</span><br><span class="line">        LogWithId top = state.PopNextUnreadLog();</span><br><span class="line">        auto* entry = top.entry;</span><br><span class="line">        auto log_id = top.log_id;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (entry-&gt;sequence() &lt; state.start()) &#123;</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        state.set_start(entry-&gt;sequence());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//是否是特权uid，是否是本日志对应的uid</span></span><br><span class="line">        <span class="keyword">if</span> (!writer-&gt;privileged() &amp;&amp; entry-&gt;uid() != writer-&gt;uid()) &#123;</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        ......</span><br><span class="line">        <span class="keyword">if</span> (!reinterpret_cast&lt;SerializedLogEntry*&gt;(entry_copy)-&gt;Flush(writer, log_id)) &#123;</span><br><span class="line">            logd_lock.lock();</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        logd_lock.lock();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>最后终于在这里找到<strong>logd</strong>进程向不同进程发送不同日志的判断依据：向客户端<strong>socket</strong>写入日志的时候，会判断下<strong>socket</strong>对端的<strong>uid</strong>是否是特权<strong>uid</strong>：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> bool <span class="title">UserIsPrivileged</span><span class="params">(<span class="keyword">int</span> id)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> id == AID_ROOT || id == AID_SYSTEM || id == AID_LOG;<span class="comment">//root，system,log</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>以及判断是不是本日志信息对应的<strong>uid</strong>，如果两者都不是，那就会跳过这段日志。<br>注意，这里是判断的进程的<strong>uid</strong>，而不是<strong>pid</strong>，刚才讲过应用通过组件声明 <strong>android:process</strong>属性时，该进程的<strong>uid</strong>与应用主进程的<strong>uid</strong>一致，那么我们在<strong>Android子进程</strong>中是可以读取到父进程的日志信息的，反之同理。</p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://msisuzney.github.io/2022/06/12/%E5%BA%94%E7%94%A8%E8%BF%9B%E7%A8%8B%E6%8A%93%E5%8F%96%E6%97%A5%E5%BF%97/" title="应用进程抓取日志">https://msisuzney.github.io/2022/06/12/应用进程抓取日志/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-ND</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/23/%E8%A7%A3%E5%86%B3BottomSheetBehavior%E5%86%B2%E7%AA%81/" rel="prev" title="解决BottomSheetBehavior冲突">
+      <i class="fa fa-chevron-left"></i> 解决BottomSheetBehavior冲突
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA%E5%AD%90%E8%BF%9B%E7%A8%8B%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">创建子进程的方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#logcat%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86"><span class="nav-number">2.</span> <span class="nav-text">logcat的基本原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#logd%E8%BF%9B%E7%A8%8B%E7%9A%84%E4%B8%BB%E8%A6%81%E9%80%BB%E8%BE%91"><span class="nav-number">3.</span> <span class="nav-text">logd进程的主要逻辑</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">23</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:chenxin7930@qq.com" title="E-Mail → mailto:chenxin7930@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-feather"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">chenxin</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
