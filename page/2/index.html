@@ -117,12 +117,12 @@
   </li>
         <li class="menu-item menu-item-categories">
 
-    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">7</span></a>
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">8</span></a>
 
   </li>
         <li class="menu-item menu-item-archives">
 
-    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">23</span></a>
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">24</span></a>
 
   </li>
   </ul>
@@ -148,6 +148,87 @@
 
           <div class="content index posts-expand">
             
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="chenxin's blog">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/" class="post-title-link" itemprop="url">Android主线程与epoll</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-12-27 22:01:57" itemprop="dateCreated datePublished" datetime="2021-12-27T22:01:57+08:00">2021-12-27</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2022-02-10 19:09:49" itemprop="dateModified" datetime="2022-02-10T19:09:49+08:00">2022-02-10</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/android%E6%BA%90%E7%A0%81/" itemprop="url" rel="index"><span itemprop="name">android源码</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h3 id="一则奇怪的现象"><a href="#一则奇怪的现象" class="headerlink" title="一则奇怪的现象"></a>一则奇怪的现象</h3><p>集成Matrix这个性能工具已经很久了，自认为对Matrix检测主线程卡顿的trace-canary模块已经熟悉了，但是最近一个同学的一次“抬杠”让我不知所措。<br>我们知道matrix官方介绍说trace-canary是利用Android主线程执行MessageQueue中的每一个Message时会在执行前打印一个日志，执行完成后再打印一个日志，记录这两个日志的时间差就可以判断我们这个Message是否执行超时，如果是，那么再进一步利用我们在每个方法中的首尾插桩计算方法的耗时，最终查找出到底是应用的哪个方法导致超时的。</p>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2021/12/27/android%E4%B8%BB%E7%BA%BF%E7%A8%8B%E4%B8%8Eepoll/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
       
   
   
@@ -878,87 +959,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.jpg">
-      <meta itemprop="name" content="">
-      <meta itemprop="description" content="时光的烂笔头">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="chenxin's blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/" class="post-title-link" itemprop="url">RecyclerView的ItemDecoration分析与实际使用</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2019-07-28 14:40:25" itemprop="dateCreated datePublished" datetime="2019-07-28T14:40:25+08:00">2019-07-28</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-11-21 14:06:09" itemprop="dateModified" datetime="2021-11-21T14:06:09+08:00">2021-11-21</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/android/" itemprop="url" rel="index"><span itemprop="name">android</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h3 id="起因"><a href="#起因" class="headerlink" title="起因"></a>起因</h3><p>在项目开发中遇到了一些实际的需求，为了满足这些需求不得不去了解新的知识点或者加深对已知知识点的认识，现在就总结一下在实际开发中对RecyclerView的ItemDecoration的使用</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2019/07/28/RecyclerView%E7%9A%84ItemDecoration%E5%88%86%E6%9E%90%E4%B8%8E%E5%AE%9E%E9%99%85%E4%BD%BF%E7%94%A8/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1030,14 +1030,14 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">23</span>
+          <span class="site-state-item-count">24</span>
           <span class="site-state-item-name">日志</span>
         </a>
       </div>
       <div class="site-state-item site-state-categories">
             <a href="/categories/">
           
-        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-count">8</span>
         <span class="site-state-item-name">分类</span></a>
       </div>
   </nav>
@@ -1072,7 +1072,7 @@
 <div class="copyright">
   
   &copy; 
-  <span itemprop="copyrightYear">2022</span>
+  <span itemprop="copyrightYear">2023</span>
   <span class="with-love">
     <i class="fa fa-feather"></i>
   </span>
