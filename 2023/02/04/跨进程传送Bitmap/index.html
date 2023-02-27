@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/avatar.jpg" color="#222">
+  <link rel="manifest" href="/images/avatar.jpg">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic|Playball:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"msisuzney.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"right","display":"hide","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="平常都在一个进程中使用Bitmap，最近用了用跨进程使用Bitmap。Bitmap本来就是内存大户，再叠加跨进程传送，难免会想到会不会导致使用的内存剧增呢？">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Android跨进程传送Bitmap">
+<meta property="og:url" content="https://msisuzney.github.io/2023/02/04/%E8%B7%A8%E8%BF%9B%E7%A8%8B%E4%BC%A0%E9%80%81Bitmap/index.html">
+<meta property="og:site_name" content="chenxin&#39;s blog">
+<meta property="og:description" content="平常都在一个进程中使用Bitmap，最近用了用跨进程使用Bitmap。Bitmap本来就是内存大户，再叠加跨进程传送，难免会想到会不会导致使用的内存剧增呢？">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://msisuzney.github.io/images/19_1_1.png">
+<meta property="og:image" content="https://msisuzney.github.io/images/19_1_2.png">
+<meta property="og:image" content="https://msisuzney.github.io/images/19_2_2.png">
+<meta property="og:image" content="https://msisuzney.github.io/images/19_2_1.png">
+<meta property="article:published_time" content="2023-02-04T15:14:20.000Z">
+<meta property="article:modified_time" content="2023-02-27T16:13:34.264Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://msisuzney.github.io/images/19_1_1.png">
+
+<link rel="canonical" href="https://msisuzney.github.io/2023/02/04/%E8%B7%A8%E8%BF%9B%E7%A8%8B%E4%BC%A0%E9%80%81Bitmap/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Android跨进程传送Bitmap | chenxin's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">chenxin's blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类<span class="badge">8</span></a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档<span class="badge">25</span></a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="https://msisuzney.github.io/2023/02/04/%E8%B7%A8%E8%BF%9B%E7%A8%8B%E4%BC%A0%E9%80%81Bitmap/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="">
+      <meta itemprop="description" content="时光的烂笔头">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="chenxin's blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Android跨进程传送Bitmap
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2023-02-04 23:14:20" itemprop="dateCreated datePublished" datetime="2023-02-04T23:14:20+08:00">2023-02-04</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2023-02-28 00:13:34" itemprop="dateModified" datetime="2023-02-28T00:13:34+08:00">2023-02-28</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9B%BE%E7%89%87%E5%8A%A0%E8%BD%BD/" itemprop="url" rel="index"><span itemprop="name">图片加载</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>平常都在一个进程中使用Bitmap，最近用了用跨进程使用Bitmap。Bitmap本来就是内存大户，再叠加跨进程传送，难免会想到会不会导致使用的内存剧增呢？</p>
+<span id="more"></span>
+<h3 id="最简单的方式"><a href="#最简单的方式" class="headerlink" title="最简单的方式"></a>最简单的方式</h3><p>跨进程传送Bitmap肯定不能用Intent+Bundle的方式传送，都是知道会抛出<strong>TransactionTooLargeException</strong>。那就走AIDL跨进程通信呗，如果把Bitmap当做一个普通的类来对待，写一段跨进程传送Bitmap的AIDL代码，就是这普通的写法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// IO.aidl</span></span><br><span class="line"><span class="keyword">package</span> com.msisuzney.common;</span><br><span class="line"><span class="keyword">import</span> android.graphics.Bitmap;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">interface</span> <span class="title">IO</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">sendBitmap</span><span class="params">(in Bitmap io)</span></span>;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>形参前<strong>in</strong>是我加上的，<strong>AIDL</strong>文件默认的就是<strong>in</strong>，它表示调用方传过来的这个Bitmap的修改不会同步给调用方。其实它们就是两个不同的Bitmap了，对这个Bitmap的修改丝毫不会影响到调用方的Bitmap，这不是我们想要的，我们需要的是对这个Bitmap的修改能够返回给调用方，很自然的就会想到使用<strong>inout</strong>关键字：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">changeColor</span><span class="params">(inout Bitmap io)</span></span>;</span><br></pre></td></tr></table></figure>
+<p><strong>inout</strong>表示对该对象的修改，会在执行完这个方法后再序列化该对象传送到调用方，调用方会阻塞等待完成。但这段代码编译不过，提示没有Bitmap实现<strong>readFromParcel</strong>方法，为什么居然没实现呢？想想也是累，调用方进程一个Bitmap，跨进程到这里是另外一个Bitmap，返回给调用方又是一个新的Bitmap，一来回三Bitmap，显然太不合理。我们需要最理想情况是:两个进程持有、修改的Bitmap始终是同一个Bitmap。</p>
+<h3 id="使用共享内存"><a href="#使用共享内存" class="headerlink" title="使用共享内存"></a>使用共享内存</h3><p>Bitmap的内存在Android 7之后就保存在了native层，我们实际上可以使用mmap的方式把它这块内存共享出去，这样其他进程对它的修改就可以实时的同步到自己进程。Android中提供了<strong>SharedMemory</strong>用来共享内存，我们可以用它来共享Bitmap的native内存，定义的数据结构如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IOBitmap</span>(</span></span><br><span class="line"><span class="class">    <span class="title">var</span> <span class="title">bitmapWidth</span>: <span class="title">Int</span> </span>= <span class="number">0</span>,</span><br><span class="line">    <span class="keyword">var</span> bitmapHeight: Int = <span class="number">0</span>,</span><br><span class="line">    <span class="keyword">var</span> bitmapMemory: SharedMemory? = <span class="keyword">null</span></span><br><span class="line">) : Parcelable &#123;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>AIDL文件修改为：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">changeColor</span><span class="params">(inout IOBitmap io)</span></span>;</span><br></pre></td></tr></table></figure>
+
+<p>下面这段代码就是将<strong>Bitmap</strong>封装进<strong>SharedMemory</strong>传送：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">lifecycleScope.launch(Dispatchers.IO) &#123;</span><br><span class="line">    io?.apply &#123;</span><br><span class="line">        val bitmap = <span class="keyword">this</span><span class="meta">@MainActivity</span>.bitmap!!</span><br><span class="line">        Log.d(<span class="string">&quot;Cxx&quot;</span>, <span class="string">&quot;bitmap size:$&#123;bitmap.allocationByteCount * 1.0 / 1024 / 1024&#125;&quot;</span>)</span><br><span class="line">        val sharedMemory = SharedMemory.create(<span class="string">&quot;bitmap_memory&quot;</span>, bitmap.allocationByteCount)</span><br><span class="line">        val buffer = sharedMemory.mapReadWrite()</span><br><span class="line">        bitmap.copyPixelsToBuffer(buffer)</span><br><span class="line">        val ioBitmap = IOBitmap(bitmapWidth, bitmapHeight, sharedMemory)</span><br><span class="line">        Log.d(<span class="string">&quot;Cxx&quot;</span>, <span class="string">&quot;before ipc:$ioBitmap&quot;</span>)</span><br><span class="line">        SharedMemory.unmap(buffer)</span><br><span class="line">        changeColor(ioBitmap)</span><br><span class="line">        Log.d(<span class="string">&quot;Cxx&quot;</span>, <span class="string">&quot;after ipc:$ioBitmap&quot;</span>)</span><br><span class="line">        val changedBuffer = sharedMemory.mapReadWrite()</span><br><span class="line">        bitmap.copyPixelsFromBuffer(changedBuffer)</span><br><span class="line">        SharedMemory.unmap(changedBuffer)</span><br><span class="line">        withContext(Dispatchers.Main) &#123;</span><br><span class="line">            <span class="keyword">this</span><span class="meta">@MainActivity</span>.bitmap = bitmap</span><br><span class="line">            imageView!!.setImageBitmap(<span class="keyword">this</span><span class="meta">@MainActivity</span>.bitmap)</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>changeColor(ioBitmap)是IPC方法，会堵塞该线程，等待服务端进程修改完成后继续执行，服务端进程的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> inner <span class="class"><span class="keyword">class</span> <span class="title">MyBinder</span> : <span class="title">IO</span>.<span class="title">Stub</span>() </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function">override fun <span class="title">changeColor</span><span class="params">(io: IOBitmap?)</span> </span>&#123;</span><br><span class="line">        io?.apply &#123;</span><br><span class="line">            Log.d(<span class="string">&quot;Cxx&quot;</span>, <span class="string">&quot;received:$&#123;io&#125;&quot;</span>)</span><br><span class="line">            val buffer = <span class="keyword">this</span>.bitmapMemory!!.mapReadWrite()</span><br><span class="line">            DirectBufferInterface().changeColor(buffer)</span><br><span class="line">            SharedMemory.unmap(buffer)</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+<p>收到SharedMemory后拿出它的ByteBuffer修改，这里的ByteBuffer是DirectByteBuffer，没有意外，它也是堆外内存，所以对它的操作放在了native层，DirectBufferInterface的changeColor方法会调用native方法直接修改DirectByteBuffer里面的数组。<br>完成之后，再次序列化IOBitmap对象，并通知到正在堵塞的对方线程，对方线程的收到后执行changeColor方法后面的代码，显示修改完成的Bitmap。</p>
+<h5 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h5><p>调用方进程新建一个10000x10000像素、ARGB8888的Bitmap，大小为10000x10000x4/1024/1024=381.5MB,使用共享内存的方式发送给服务方进程，服务方进程修改像素的色值后，再同步给调用方进程。以下是使用Profiler查看两个进程内存变化的情况：</p>
+<h6 id="客户端进程新建Bitmap"><a href="#客户端进程新建Bitmap" class="headerlink" title="客户端进程新建Bitmap"></a>客户端进程新建Bitmap</h6><img src="https://msisuzney.github.io/images/19_1_1.png" height="50%" width="50%">
+新建这个Bitmap并显示出来，可以看见Native和Graphics都增加了相同大小的区域
+
+<h6 id="服务端进程修改Bitmap"><a href="#服务端进程修改Bitmap" class="headerlink" title="服务端进程修改Bitmap"></a>服务端进程修改Bitmap</h6><p>客户端进程发起跨进程到服务端进程修改这个Bitmap的像素，服务端进程的内存变化情况：<br><img src="https://msisuzney.github.io/images/19_1_2.png" height="50%" width="50%"><br>服务端进程的Others内存增加后迅速恢复到以前的水平</p>
+<h6 id="客户端进程更新Bitmap"><a href="#客户端进程更新Bitmap" class="headerlink" title="客户端进程更新Bitmap"></a>客户端进程更新Bitmap</h6><p>服务端进程修改完这个Bitmap后客户端继续执行，显示修改后的Bitmap。内存变化参考上面客户端进程内存变化图的最后部分，可以确定Native内存并没有波澜，只是显示出来时Graphics内存增加了。</p>
+<h3 id="使用HardwareBuffer传送Bitmap"><a href="#使用HardwareBuffer传送Bitmap" class="headerlink" title="使用HardwareBuffer传送Bitmap"></a>使用HardwareBuffer传送Bitmap</h3><p>Android 12后Bitmap多了一个方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Bitmap:</span><br><span class="line">  <span class="keyword">public</span> <span class="meta">@NonNull</span> <span class="function">HardwareBuffer <span class="title">getHardwareBuffer</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>HardwareBuffer类：</p>
+<blockquote>
+<p>HardwareBuffer wraps a native AHardwareBuffer object, which is a low-level object representing a memory buffer &gt;accessible by various hardware units. HardwareBuffer allows sharing buffers across different application &gt;processes. In particular, HardwareBuffers may be mappable to memory accessibly to various hardware systems, &gt;such as the GPU, a sensor or context hub, or other auxiliary processing units. For more information, see the &gt;NDK documentation for AHardwareBuffer.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">HardwareBuffer</span> <span class="keyword">implements</span> <span class="title">Parcelable</span>, <span class="title">AutoCloseable</span></span></span><br></pre></td></tr></table></figure>
+<p>所以我们还可以新建一个Hardware的Bitmap，再通过共享HardwareBuffer的方式把这Bitmap跨进程传送。<br>服务端提供Hardware Bitmap:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@RequiresApi(Build.VERSION_CODES.S)</span></span><br><span class="line"><span class="function">override fun <span class="title">getHardwareBitmap</span><span class="params">()</span>: HardwareBuffer </span>&#123;</span><br><span class="line">    val options = BitmapFactory.Options()</span><br><span class="line">    options.inScaled = <span class="keyword">false</span></span><br><span class="line">    <span class="comment">//4000 * 4000 * 4 =</span></span><br><span class="line">    options.inSampleSize = <span class="number">2</span></span><br><span class="line">    options.inPreferredConfig = Bitmap.Config.HARDWARE</span><br><span class="line">    val bitmap =</span><br><span class="line">        BitmapFactory.decodeResource(</span><br><span class="line">            <span class="keyword">this</span><span class="meta">@MyService</span>.resources,</span><br><span class="line">            R.drawable.test,</span><br><span class="line">            options</span><br><span class="line">        )</span><br><span class="line">    <span class="keyword">return</span> bitmap.hardwareBuffer</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>客户端跨进程加载并显示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@RequiresApi(Build.VERSION_CODES.Q)</span></span><br><span class="line"><span class="function">fun <span class="title">get</span><span class="params">(view: View)</span> </span>&#123;</span><br><span class="line">    lifecycleScope.launch(Dispatchers.IO) &#123;</span><br><span class="line">        io?.apply &#123;</span><br><span class="line">            val bitmap = Bitmap.wrapHardwareBuffer(</span><br><span class="line">                <span class="keyword">this</span>.hardwareBitmap,</span><br><span class="line">                ColorSpace.get(ColorSpace.Named.SRGB)</span><br><span class="line">            )</span><br><span class="line">            withContext(Dispatchers.Main) &#123;</span><br><span class="line">                imageView?.setImageBitmap(bitmap)</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>服务端进程内存变化:<br><img src="https://msisuzney.github.io/images/19_2_2.png" height="50%" width="50%"><br>客户端进程内存变化:<br><img src="https://msisuzney.github.io/images/19_2_1.png" height="50%" width="50%"><br>可以发现最后只剩下Graphics内存了。但这样做有一个缺点，这块Bitmap的像素不可以操作，只能显示。</p>
+<h4 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h4><p>以上演示的Demo代码在<a target="_blank" rel="noopener" href="https://github.com/msisuzney/AndroidBitmapSharingTest"><strong>AndroidBitmapSharingTest</strong></a></p>
+
+    </div>
+
+    
+    
+    
+        
+
+<div>
+<ul class="post-copyright">
+  <li class="post-copyright-author">
+    <strong>本文作者： </strong>
+  </li>
+  <li class="post-copyright-link">
+    <strong>本文链接：</strong>
+    <a href="https://msisuzney.github.io/2023/02/04/%E8%B7%A8%E8%BF%9B%E7%A8%8B%E4%BC%A0%E9%80%81Bitmap/" title="Android跨进程传送Bitmap">https://msisuzney.github.io/2023/02/04/跨进程传送Bitmap/</a>
+  </li>
+  <li class="post-copyright-license">
+    <strong>版权声明： </strong>本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/deed.zh" rel="noopener" target="_blank"><i class="fab fa-fw fa-creative-commons"></i>BY-NC-ND</a> 许可协议。转载请注明出处！
+  </li>
+</ul>
+</div>
+
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/01/05/DLNA%E4%BD%BF%E7%94%A8%E5%88%B0UPnP%E5%8D%8F%E8%AE%AE%E4%BB%8B%E7%BB%8D/" rel="prev" title="DLNA使用到UPnP协议介绍">
+      <i class="fa fa-chevron-left"></i> DLNA使用到UPnP协议介绍
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%80%E7%AE%80%E5%8D%95%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">1.</span> <span class="nav-text">最简单的方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98"><span class="nav-number">2.</span> <span class="nav-text">使用共享内存</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E9%AA%8C%E8%AF%81"><span class="nav-number">2.0.1.</span> <span class="nav-text">验证</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9B%E7%A8%8B%E6%96%B0%E5%BB%BABitmap"><span class="nav-number">2.0.1.1.</span> <span class="nav-text">客户端进程新建Bitmap</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%BF%9B%E7%A8%8B%E4%BF%AE%E6%94%B9Bitmap"><span class="nav-number">2.0.1.2.</span> <span class="nav-text">服务端进程修改Bitmap</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9B%E7%A8%8B%E6%9B%B4%E6%96%B0Bitmap"><span class="nav-number">2.0.1.3.</span> <span class="nav-text">客户端进程更新Bitmap</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8HardwareBuffer%E4%BC%A0%E9%80%81Bitmap"><span class="nav-number">3.</span> <span class="nav-text">使用HardwareBuffer传送Bitmap</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81"><span class="nav-number">3.1.</span> <span class="nav-text">代码</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt=""
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name"></p>
+  <div class="site-description" itemprop="description">时光的烂笔头</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">25</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">8</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/msisuzney" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;msisuzney" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:chenxin7930@qq.com" title="E-Mail → mailto:chenxin7930@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-feather"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">chenxin</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
